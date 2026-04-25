@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geoportal de Afectaciones</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <link rel="stylesheet" href="styles.css?v=20260425f" />
+</head>
+<body>
+  <div class="background-shape shape-1"></div>
+  <div class="background-shape shape-2"></div>
+
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Geoportal operativo</p>
+      <h1>Afectaciones BA 170426</h1>
+    </div>
+    <div class="actions">
+      <button id="btn-reload" type="button">Recargar capa</button>
+      <button id="btn-clear-filters" type="button">Limpiar filtros</button>
+      <button id="btn-fit" type="button">Centrar mapa</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel">
+      <section class="card total-card">
+        <h2>Total de afectaciones</h2>
+        <p id="metric-total" class="total-value">-</p>
+      </section>
+
+      <section class="card list-card">
+        <h2>Clasificaciones (filtro)</h2>
+        <p class="hint">Toca una o varias clasificaciones para filtrar.</p>
+        <div id="clasifica-list" class="chips"></div>
+      </section>
+
+      <section class="card list-card">
+        <h2>Municipio (filtro)</h2>
+        <p class="hint">Toca un municipio para filtrar. Vuelve a tocar para quitar.</p>
+        <input id="muni-search" class="text-filter" type="text" placeholder="Buscar municipio..." />
+        <div id="muni-list" class="chips"></div>
+      </section>
+
+      <section class="card legend-card">
+        <h2>Leyenda</h2>
+        <ul class="legend-list">
+          <li><span class="legend-dot" style="--dot:#ff1a1a;--dot-border:#8b0000"></span><span>Predio / Vivienda</span></li>
+          <li><span class="legend-dot" style="--dot:#ffd400;--dot-border:#7d6900"></span><span>Infraestructura</span></li>
+          <li><span class="legend-dot" style="--dot:#8f8f8f;--dot-border:#4f4f4f"></span><span>Vialidad</span></li>
+          <li><span class="legend-dot" style="--dot:#ff8c00;--dot-border:#9a4f00"></span><span>Iglesia</span></li>
+          <li><span class="legend-dot" style="--dot:#ffffff;--dot-border:#111111"></span><span>Troncoconico</span></li>
+          <li><span class="legend-line troncal"></span><span>Trazo troncal (KMZ)</span></li>
+          <li><span class="legend-line limite"></span><span>Limite municipal</span></li>
+        </ul>
+      </section>
+    </aside>
+
+    <section class="map-wrap">
+      <div id="map" aria-label="Mapa principal"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
+  <script src="app.js?v=20260425o"></script>
+</body>
+</html>
