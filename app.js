@@ -189,6 +189,12 @@ function normalizeFeature(rawFeature) {
   };
 }
 
+function isValidAfectacion(feature) {
+  const props = feature && feature.properties ? feature.properties : {};
+  const clasifica = String(props.Clasifica || "").trim().toLowerCase();
+  return clasifica && clasifica !== "sin dato";
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -585,9 +591,12 @@ async function loadKmzLayer() {
 
   try {
     const featureCollection = await parseKmzToGeoJson(KMZ_PATH);
+    const normalizedFeatures = (featureCollection.features || []).map(normalizeFeature);
+    const validFeatures = normalizedFeatures.filter(isValidAfectacion);
+
     sourceFeatureCollection = {
       type: "FeatureCollection",
-      features: (featureCollection.features || []).map(normalizeFeature),
+      features: validFeatures,
     };
 
     allMunicipioCounts = countByField(sourceFeatureCollection.features, "nom_mun");
