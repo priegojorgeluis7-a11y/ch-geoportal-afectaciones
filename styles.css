@@ -500,9 +500,11 @@ button:disabled {
   }
 }
 
-/* Quitar panel-toggle en desktop */
-.panel-toggle {
-  display: none;
+/* Ocultar panel-toggle en desktop */
+@media (min-width: 721px) {
+  .panel-toggle {
+    display: none;
+  }
 }
 
 .bar-item {
