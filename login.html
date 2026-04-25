@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acceso | Identificación de Afectaciones</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-a: #f5efe0;
+      --bg-b: #dcefdc;
+      --ink: #1f2f2a;
+      --line: rgba(31, 47, 42, 0.14);
+      --card: rgba(255, 252, 247, 0.9);
+      --accent: #0f4da6;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      font-family: "Space Grotesk", sans-serif;
+      background: radial-gradient(circle at 20% 10%, var(--bg-a) 0%, #fdfcf8 30%, var(--bg-b) 100%);
+    }
+
+    .card {
+      width: min(92vw, 420px);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--card);
+      padding: 1.2rem;
+      box-shadow: 0 16px 35px rgba(31, 47, 42, 0.15);
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "IBM Plex Serif", serif;
+      font-size: clamp(1.2rem, 3.2vw, 1.7rem);
+    }
+
+    p {
+      margin: 0.6rem 0 1rem;
+      color: #3f564f;
+      font-size: 0.92rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-size: 0.86rem;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.62rem 0.7rem;
+      font: inherit;
+      margin-bottom: 0.8rem;
+    }
+
+    input:focus {
+      outline: 2px solid rgba(15, 77, 166, 0.25);
+      outline-offset: 1px;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.65rem 0.95rem;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .error {
+      margin-top: 0.65rem;
+      min-height: 1.1rem;
+      font-size: 0.84rem;
+      color: #b42318;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Identificación de Afectaciones</h1>
+    <p>Ingresa la contraseña para continuar.</p>
+    <form id="login-form" autocomplete="off">
+      <label for="password">Contraseña</label>
+      <input id="password" name="password" type="password" required />
+      <button type="submit">Entrar</button>
+      <div id="error" class="error" aria-live="polite"></div>
+    </form>
+  </main>
+
+  <script>
+    if (localStorage.getItem("geoportal-auth") === "ok") {
+      window.location.replace("index.html");
+    }
+
+    const PASSWORD = "UVSR";
+    const form = document.getElementById("login-form");
+    const passwordInput = document.getElementById("password");
+    const errorBox = document.getElementById("error");
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const value = (passwordInput.value || "").trim();
+
+      if (value !== PASSWORD) {
+        errorBox.textContent = "Contraseña incorrecta.";
+        passwordInput.focus();
+        passwordInput.select();
+        return;
+      }
+
+      localStorage.setItem("geoportal-auth", "ok");
+      window.location.replace("index.html");
+    });
+  </script>
+</body>
+</html>
