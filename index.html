@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-  <link rel="stylesheet" href="styles.css?v=20260425j" />
+  <link rel="stylesheet" href="styles.css?v=20260425k" />
 </head>
 <body>
   <div class="background-shape shape-1"></div>
@@ -34,11 +34,12 @@
   </header>
 
   <main class="layout">
+    <button class="panel-toggle" id="btn-panel-toggle" type="button" aria-expanded="false" aria-controls="filter-panel">
+      <span>Filtros y leyenda</span>
+      <i class="toggle-icon" aria-hidden="true">▼</i>
+    </button>
+
     <aside class="panel" id="filter-panel">
-      <button class="panel-toggle" id="btn-panel-toggle" type="button" aria-expanded="false" aria-controls="filter-panel">
-        <span>Filtros y leyenda</span>
-        <i class="toggle-icon" aria-hidden="true">▼</i>
-      </button>
       <section class="card total-card">
         <h2>Total de afectaciones</h2>
         <p id="metric-total" class="total-value">-</p>
