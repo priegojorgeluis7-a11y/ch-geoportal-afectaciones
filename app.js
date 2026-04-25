@@ -10,6 +10,16 @@ const muniSearch = document.getElementById("muni-search");
 const btnReload = document.getElementById("btn-reload");
 const btnClearFilters = document.getElementById("btn-clear-filters");
 const btnFit = document.getElementById("btn-fit");
+const btnPanelToggle = document.getElementById("btn-panel-toggle");
+const filterPanel = document.getElementById("filter-panel");
+
+// Toggle panel en móvil
+if (btnPanelToggle && filterPanel) {
+  btnPanelToggle.addEventListener("click", () => {
+    const isOpen = filterPanel.classList.toggle("open");
+    btnPanelToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  });
+}
 
 const map = L.map("map", {
   zoomControl: true,

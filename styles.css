@@ -363,6 +363,106 @@ button:disabled {
   border-top-style: dashed;
 }
 
+/* ─── Móvil ──────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  /* Topbar: apilar título y botones */
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.75rem 0.9rem 0.6rem;
+    gap: 0.55rem;
+  }
+
+  h1 {
+    font-size: 1.22rem !important;
+  }
+
+  .actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .actions button {
+    font-size: 0.76rem;
+    padding: 0.45rem 0.7rem;
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  /* Layout: columna única, mapa primero */
+  .layout {
+    grid-template-columns: 1fr;
+    padding: 0 0.6rem 0.9rem;
+    gap: 0.6rem;
+  }
+
+  .map-wrap {
+    order: -1;
+    min-height: unset;
+    border-radius: 14px;
+  }
+
+  #map {
+    height: 52vh;
+    min-height: 280px;
+  }
+
+  .panel {
+    order: 1;
+    gap: 0;
+  }
+
+  /* Botón toggle del panel */
+  .panel-toggle {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 0.75rem 1rem;
+    font-size: 0.94rem;
+    font-weight: 700;
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    margin-bottom: 0.6rem;
+  }
+
+  .panel-toggle .toggle-icon {
+    font-style: normal;
+    transition: transform 250ms ease;
+    font-size: 0.75rem;
+  }
+
+  .panel.open .panel-toggle .toggle-icon {
+    transform: rotate(180deg);
+  }
+
+  /* Tarjetas ocultas cuando panel está cerrado */
+  .panel:not(.open) .card {
+    display: none;
+  }
+
+  /* touch targets para chips */
+  .chip {
+    padding: 0.48rem 0.7rem;
+    font-size: 0.84rem;
+  }
+
+  .text-filter {
+    font-size: 1rem; /* evita zoom en iOS */
+    padding: 0.55rem 0.7rem;
+  }
+}
+
+/* Quitar panel-toggle en desktop */
+.panel-toggle {
+  display: none;
+}
+
 .bar-item {
   display: grid;
   grid-template-columns: 1fr auto;
