@@ -104,7 +104,7 @@
   </main>
 
   <script>
-    if (localStorage.getItem("geoportal-auth") === "ok") {
+    if (sessionStorage.getItem("geoportal-auth") === "ok") {
       window.location.replace("index.html");
     }
 
@@ -124,7 +124,7 @@
         return;
       }
 
-      localStorage.setItem("geoportal-auth", "ok");
+      sessionStorage.setItem("geoportal-auth", "ok");
       window.location.replace("index.html");
     });
   </script>
