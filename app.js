@@ -48,7 +48,10 @@ const baseImagery = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   {
     attribution: "Tiles &copy; Esri",
-    maxZoom: 19,
+    // Esri no tiene cobertura completa en niveles muy altos para todas las zonas.
+    // maxNativeZoom evita pedir tiles inexistentes y Leaflet hace over-zoom visual.
+    maxNativeZoom: 17,
+    maxZoom: 22,
   }
 );
 
