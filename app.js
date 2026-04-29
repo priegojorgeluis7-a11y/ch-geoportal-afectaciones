@@ -25,6 +25,7 @@ const btnRemoveGif = document.getElementById("btn-remove-gif");
 const btnClearAllFichas = document.getElementById("btn-clear-all-fichas");
 const editorFeedback = document.getElementById("editor-feedback");
 const editorCard = document.querySelector(".editor-card");
+const saveToast = document.getElementById("save-toast");
 const videoModal = document.getElementById("video-modal");
 const videoModalClose = document.getElementById("video-modal-close");
 const viaductoVideo = document.getElementById("viaducto-video");
@@ -47,6 +48,7 @@ const map = L.map("map", {
 
 map.createPane("troncalPane");
 map.getPane("troncalPane").style.zIndex = 350;
+map.getPane("troncalPane").style.pointerEvents = "none";
 map.createPane("afectacionesPane");
 map.getPane("afectacionesPane").style.zIndex = 420;
 map.createPane("boundaryPane");
@@ -224,6 +226,16 @@ function showEditorFeedback(message, tone = "ok") {
     editorCard.classList.remove("saved-pulse");
     void editorCard.offsetWidth;
     editorCard.classList.add("saved-pulse");
+  }
+
+  if (saveToast && tone === "ok") {
+    saveToast.textContent = message;
+    saveToast.classList.add("show");
+    saveToast.setAttribute("aria-hidden", "false");
+    window.setTimeout(() => {
+      saveToast.classList.remove("show");
+      saveToast.setAttribute("aria-hidden", "true");
+    }, 1600);
   }
 }
 
@@ -1093,9 +1105,13 @@ async function loadTroncalLayer() {
     const troncalCollection = await parseKmzToGeoJson(TRONCAL_KMZ_PATH);
     troncalLayer = L.geoJSON(troncalCollection, {
       pane: "troncalPane",
+      interactive: false,
+      bubblingMouseEvents: false,
       pointToLayer: (_feature, latlng) => {
         return L.circleMarker(latlng, {
           pane: "troncalPane",
+          interactive: false,
+          bubblingMouseEvents: false,
           radius: 4,
           color: "#0c3db8",
           weight: 1.5,

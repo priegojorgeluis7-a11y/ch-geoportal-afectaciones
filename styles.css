@@ -317,6 +317,28 @@ button:disabled {
   animation: editorPulse 420ms ease;
 }
 
+.save-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2500;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  background: rgba(11, 107, 81, 0.96);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 12px 24px rgba(9, 52, 41, 0.28);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.save-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 @keyframes editorPulse {
   0% {
     box-shadow: 0 0 0 0 rgba(11, 107, 81, 0.36);
