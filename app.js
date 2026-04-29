@@ -335,13 +335,45 @@ function openPopupForLayer(layer, props) {
   layer.openPopup();
 }
 
-function handleAfectacionLayerClick(layer, props) {
+function placePendingPinAtLatLng(latlng) {
+  if (!pendingPinDraft || !latlng) return false;
+
+  const pin = {
+    id: `pin-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    lat: latlng.lat,
+    lng: latlng.lng,
+    gifUrl: pendingPinDraft.gifUrl,
+    title: pendingPinDraft.title,
+    description: pendingPinDraft.description,
+    afectKeys: pendingPinDraft.afectKeys,
+  };
+
+  gifPins.push(pin);
+  persistGifPins();
+  renderGifPinsAndLinks();
+
+  pendingPinDraft = null;
+  showEditorFeedback("Pin GIF guardado y vinculado correctamente.", "ok");
+  setStatus("Pin GIF creado y vinculado.");
+  return true;
+}
+
+function handleAfectacionLayerClick(layer, props, event) {
+  if (pendingPinDraft) {
+    const latlng =
+      event && event.latlng
+        ? event.latlng
+        : (typeof layer.getLatLng === "function" ? layer.getLatLng() : null);
+
+    if (placePendingPinAtLatLng(latlng)) return;
+  }
+
   openPopupForLayer(layer, props);
 }
 
 function attachAfectacionLayerEvents(layer, props) {
-  layer.on("click", () => {
-    handleAfectacionLayerClick(layer, props);
+  layer.on("click", (event) => {
+    handleAfectacionLayerClick(layer, props, event);
   });
 }
 
@@ -388,25 +420,7 @@ function setupPinEditorEvents() {
   }
 
   map.on("click", (event) => {
-    if (!pendingPinDraft) return;
-
-    const pin = {
-      id: `pin-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-      lat: event.latlng.lat,
-      lng: event.latlng.lng,
-      gifUrl: pendingPinDraft.gifUrl,
-      title: pendingPinDraft.title,
-      description: pendingPinDraft.description,
-      afectKeys: pendingPinDraft.afectKeys,
-    };
-
-    gifPins.push(pin);
-    persistGifPins();
-    renderGifPinsAndLinks();
-
-    pendingPinDraft = null;
-    showEditorFeedback("Pin GIF guardado y vinculado correctamente.", "ok");
-    setStatus("Pin GIF creado y vinculado.");
+    placePendingPinAtLatLng(event.latlng);
   });
 }
 
