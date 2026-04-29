@@ -16,16 +16,20 @@ const btnFit = document.getElementById("btn-fit");
 const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
 const afectacionSelect = document.getElementById("afectacion-select");
+const afectacionSelectedLabel = document.getElementById("afectacion-selected-label");
 const afectacionNumeroInput = document.getElementById("afectacion-numero");
 const afectacionDescripcionInput = document.getElementById("afectacion-descripcion");
 const btnSaveAfectacion = document.getElementById("btn-save-afectacion");
 const btnClearAfectacion = document.getElementById("btn-clear-afectacion");
 const afectFeedback = document.getElementById("afect-feedback");
 const pinAfectacionesSelect = document.getElementById("pin-afectaciones");
+const pinSelectedCount = document.getElementById("pin-selected-count");
 const pinTitleInput = document.getElementById("pin-title");
 const pinDescriptionInput = document.getElementById("pin-description");
 const gifUrlInput = document.getElementById("gif-url");
 const btnPlaceGifPin = document.getElementById("btn-place-gif-pin");
+const btnPinSelectMode = document.getElementById("btn-pin-select-mode");
+const btnClearPinSelection = document.getElementById("btn-clear-pin-selection");
 const btnClearAllPins = document.getElementById("btn-clear-all-pins");
 const editorFeedback = document.getElementById("editor-feedback");
 const gifEditorCard = document.querySelector(".editor-gif-card");
@@ -155,6 +159,8 @@ const afectacionCatalog = new Map();
 const afectacionFeatureIndex = new Map();
 let afectacionMeta = {};
 let selectedAfectacionKey = "";
+const selectedAfectacionesForPin = new Set();
+let pinSelectionMode = false;
 let gifPins = [];
 let pendingPinDraft = null;
 let gifPinLayer = null;
@@ -312,6 +318,66 @@ function refreshPinAfectacionesSelect() {
       afectacionSelect.value = selectedAfectacionKey;
     }
   }
+
+  updateSelectedAfectacionLabel();
+}
+
+function updateSelectedAfectacionLabel() {
+  if (!afectacionSelectedLabel) return;
+
+  if (!selectedAfectacionKey) {
+    afectacionSelectedLabel.textContent = "Ninguna afectacion seleccionada.";
+    return;
+  }
+
+  const item = afectacionCatalog.get(selectedAfectacionKey);
+  afectacionSelectedLabel.textContent = item
+    ? `Seleccionada: ${item.label}`
+    : "Ninguna afectacion seleccionada.";
+}
+
+function updatePinSelectionUi() {
+  if (pinSelectedCount) {
+    pinSelectedCount.textContent = `Afectaciones seleccionadas para pin: ${selectedAfectacionesForPin.size}`;
+  }
+
+  if (btnPinSelectMode) {
+    btnPinSelectMode.classList.toggle("active", pinSelectionMode);
+    btnPinSelectMode.textContent = pinSelectionMode ? "Seleccion en mapa: activa" : "Seleccionar en mapa";
+  }
+}
+
+function isAfectacionSelectedForPin(afectKey) {
+  return Boolean(afectKey) && selectedAfectacionesForPin.has(afectKey);
+}
+
+function toggleAfectacionSelectionForPin(afectKey) {
+  if (!afectKey) return;
+
+  if (selectedAfectacionesForPin.has(afectKey)) {
+    selectedAfectacionesForPin.delete(afectKey);
+  } else {
+    selectedAfectacionesForPin.add(afectKey);
+  }
+
+  updatePinSelectionUi();
+}
+
+function clearPinSelection() {
+  selectedAfectacionesForPin.clear();
+  updatePinSelectionUi();
+}
+
+function buildPointIcon(clasifica, isSelected = false) {
+  const classStyle = getClassStyle(clasifica);
+  const selectedClass = isSelected ? " map-point-selected" : "";
+
+  return L.divIcon({
+    className: "",
+    html: `<div class="map-point${selectedClass}" style="--point-fill:${classStyle.fill};--point-stroke:${classStyle.stroke}"></div>`,
+    iconSize: [13, 13],
+    iconAnchor: [6.5, 6.5],
+  });
 }
 
 function getFeatureCenter(feature) {
@@ -341,6 +407,7 @@ function renderGifPinsAndLinks() {
   for (const pin of gifPins) {
     const marker = L.marker([pin.lat, pin.lng], {
       pane: "poiPane",
+      draggable: true,
       icon: L.divIcon({
         className: "gif-pin-wrap",
         html: '<div class="gif-pin-icon">GIF</div>',
@@ -352,6 +419,16 @@ function renderGifPinsAndLinks() {
 
     marker.on("click", () => {
       openGifModal(pin.gifUrl, { nom_mun: pin.title || "Pin GIF" });
+    });
+
+    marker.on("dragend", () => {
+      const next = marker.getLatLng();
+      pin.lat = next.lat;
+      pin.lng = next.lng;
+      persistGifPins();
+      renderGifPinsAndLinks();
+      setStatus("Pin GIF movido y guardado.");
+      showEditorFeedback("Pin GIF movido correctamente.", "ok");
     });
 
     marker.bindTooltip(pin.title || "Pin GIF", { direction: "top", offset: [0, -16] });
@@ -446,6 +523,9 @@ function placePendingPinAtLatLng(latlng) {
 }
 
 function handleAfectacionLayerClick(layer, props, event) {
+  const afectKey = buildAfectacionKey(props);
+  fillAfectacionEditorForm(afectKey);
+
   if (pendingPinDraft) {
     const latlng =
       event && event.latlng
@@ -453,6 +533,13 @@ function handleAfectacionLayerClick(layer, props, event) {
         : (typeof layer.getLatLng === "function" ? layer.getLatLng() : null);
 
     if (placePendingPinAtLatLng(latlng)) return;
+  }
+
+  if (pinSelectionMode) {
+    toggleAfectacionSelectionForPin(afectKey);
+    renderCurrentLayer(lastFilteredFeatures, { skipFit: true });
+    setStatus(`Seleccion de pin actualizada (${selectedAfectacionesForPin.size} afectaciones).`);
+    return;
   }
 
   openPopupForLayer(layer, props);
@@ -465,14 +552,9 @@ function attachAfectacionLayerEvents(layer, props) {
 }
 
 function setupAfectacionEditorEvents() {
-  if (!afectacionSelect || !afectacionNumeroInput || !afectacionDescripcionInput || !btnSaveAfectacion) {
+  if (!afectacionNumeroInput || !afectacionDescripcionInput || !btnSaveAfectacion) {
     return;
   }
-
-  afectacionSelect.addEventListener("change", (event) => {
-    const key = String(event.target.value || "");
-    fillAfectacionEditorForm(key);
-  });
 
   btnSaveAfectacion.addEventListener("click", () => {
     if (!selectedAfectacionKey) {
@@ -492,7 +574,6 @@ function setupAfectacionEditorEvents() {
       catalogItem.label = buildAfectacionLabel(catalogItem.props);
       afectacionCatalog.set(selectedAfectacionKey, catalogItem);
       refreshPinAfectacionesSelect();
-      if (afectacionSelect) afectacionSelect.value = selectedAfectacionKey;
     }
 
     showAfectFeedback("Ficha de afectacion guardada correctamente.", "ok");
@@ -515,7 +596,6 @@ function setupAfectacionEditorEvents() {
         catalogItem.label = buildAfectacionLabel(catalogItem.props);
         afectacionCatalog.set(selectedAfectacionKey, catalogItem);
         refreshPinAfectacionesSelect();
-        if (afectacionSelect) afectacionSelect.value = selectedAfectacionKey;
       }
 
       showAfectFeedback("Se limpio la ficha de la afectacion seleccionada.", "warn");
@@ -677,6 +757,7 @@ loadGifPinsFromStorage();
 loadAfectacionMetaFromStorage();
 setupAfectacionEditorEvents();
 setupPinEditorEvents();
+updatePinSelectionUi();
 
 function stopPointAnimation() {
   if (pointAnimationFrameId) {
@@ -964,7 +1045,7 @@ function getClusterTone(childCount) {
   return "small";
 }
 
-function renderCurrentLayer(filteredFeatures) {
+function renderCurrentLayer(filteredFeatures, options = {}) {
   stopPointAnimation();
 
   if (currentLayer) {
@@ -1001,13 +1082,8 @@ function renderCurrentLayer(filteredFeatures) {
 
       if (geometry.type === "Point" && Array.isArray(geometry.coordinates)) {
         const [lng, lat] = geometry.coordinates;
-        const classStyle = getClassStyle(props.Clasifica);
-        const icon = L.divIcon({
-          className: "",
-          html: `<div class="map-point" style="--point-fill:${classStyle.fill};--point-stroke:${classStyle.stroke}"></div>`,
-          iconSize: [13, 13],
-          iconAnchor: [6.5, 6.5],
-        });
+        const afectKey = buildAfectacionKey(props);
+        const icon = buildPointIcon(props.Clasifica, isAfectacionSelectedForPin(afectKey));
 
         const marker = L.marker([lat, lng], {
           pane: "afectacionesPane",
@@ -1021,12 +1097,14 @@ function renderCurrentLayer(filteredFeatures) {
       const shape = L.geoJSON(feature, {
         pane: "afectacionesPane",
         style: () => {
+          const afectKey = buildAfectacionKey(props);
+          const selected = isAfectacionSelectedForPin(afectKey);
           const classStyle = getClassStyle(props.Clasifica);
           return {
             color: classStyle.stroke,
             fillColor: classStyle.fill,
-            weight: 2,
-            fillOpacity: 0.36,
+            weight: selected ? 4 : 2,
+            fillOpacity: selected ? 0.5 : 0.36,
           };
         },
         onEachFeature: (_item, layer) => {
@@ -1044,6 +1122,8 @@ function renderCurrentLayer(filteredFeatures) {
         pane: "afectacionesPane",
         pointToLayer: (feature, latlng) => {
           const props = feature.properties || {};
+          const afectKey = buildAfectacionKey(props);
+          const selected = isAfectacionSelectedForPin(afectKey);
           const classStyle = getClassStyle(props.Clasifica);
           const marker = L.circleMarker(latlng, {
             pane: "afectacionesPane",
@@ -1051,21 +1131,23 @@ function renderCurrentLayer(filteredFeatures) {
             radius: radiusByPondera(props.Pondera),
             className: "pulse-point",
             color: classStyle.stroke,
-            weight: 2,
+            weight: selected ? 4 : 2,
             fillColor: classStyle.fill,
-            fillOpacity: 0.92,
+            fillOpacity: selected ? 1 : 0.92,
           });
           pointLayers.push(marker);
           return marker;
         },
         style: (feature) => {
           const props = feature.properties || {};
+          const afectKey = buildAfectacionKey(props);
+          const selected = isAfectacionSelectedForPin(afectKey);
           const classStyle = getClassStyle(props.Clasifica);
           return {
             color: classStyle.stroke,
             fillColor: classStyle.fill,
-            weight: 2,
-            fillOpacity: 0.36,
+            weight: selected ? 4 : 2,
+            fillOpacity: selected ? 0.5 : 0.36,
           };
         },
         onEachFeature: (feature, layer) => {
@@ -1077,7 +1159,7 @@ function renderCurrentLayer(filteredFeatures) {
   }
 
   const bounds = L.geoJSON({ type: "FeatureCollection", features: filteredFeatures }).getBounds();
-  if (bounds.isValid()) {
+  if (!options.skipFit && bounds.isValid()) {
     map.fitBounds(bounds.pad(0.1));
   }
 

@@ -74,8 +74,8 @@
 
       <section class="card editor-card editor-afect-card">
         <h2>Edicion de Afectaciones</h2>
-        <p class="hint">Selecciona una afectacion y guarda su numero y descripcion.</p>
-        <select id="afectacion-select" class="text-filter" aria-label="Seleccionar afectacion"></select>
+        <p class="hint">Selecciona la afectacion directamente en el mapa y guarda su numero y descripcion.</p>
+        <p id="afectacion-selected-label" class="hint">Ninguna afectacion seleccionada.</p>
         <input id="afectacion-numero" class="text-filter" type="text" placeholder="Numero de afectacion" />
         <textarea id="afectacion-descripcion" class="text-filter text-area" placeholder="Descripcion de la afectacion..."></textarea>
         <p id="afect-feedback" class="editor-feedback" aria-live="polite"></p>
@@ -87,12 +87,16 @@
 
       <section class="card editor-card editor-gif-card">
         <h2>Pines GIF (uno a varios)</h2>
-        <p class="hint">Selecciona afectaciones, captura URL del GIF y coloca el pin en el mapa.</p>
-        <select id="pin-afectaciones" class="text-filter pin-multi" aria-label="Vincular afectaciones" multiple></select>
+        <p class="hint">Activa "Seleccionar en mapa", toca los puntos a vincular y luego coloca el pin.</p>
+        <p id="pin-selected-count" class="hint">Afectaciones seleccionadas para pin: 0</p>
         <input id="pin-title" class="text-filter" type="text" placeholder="Titulo del pin (opcional)" />
         <textarea id="pin-description" class="text-filter text-area" placeholder="Descripcion del pin (se mostrara en las fichas vinculadas)..."></textarea>
         <input id="gif-url" class="text-filter" type="text" placeholder="URL del GIF (https://...gif)" />
         <p id="editor-feedback" class="editor-feedback" aria-live="polite"></p>
+        <div class="editor-actions">
+          <button id="btn-pin-select-mode" type="button">Seleccionar en mapa</button>
+          <button id="btn-clear-pin-selection" type="button" class="btn-clear-all">Limpiar seleccion</button>
+        </div>
         <div class="editor-actions">
           <button id="btn-place-gif-pin" type="button">Colocar pin GIF</button>
           <button id="btn-clear-all-pins" type="button" class="btn-clear-all">Borrar pines</button>
@@ -137,6 +141,6 @@
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
-  <script src="app.js?v=20260429o"></script>
+  <script src="app.js?v=20260429p"></script>
 </body>
 </html>
