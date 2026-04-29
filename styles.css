@@ -104,11 +104,39 @@ button:disabled {
   box-shadow: none;
 }
 
+
 .layout {
   display: grid;
   grid-template-columns: minmax(280px, 350px) 1fr;
   gap: 1rem;
   padding: 0 1.2rem 1.2rem;
+  height: calc(100vh - 64px);
+  min-height: 480px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  animation: rise 650ms ease;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.map-wrap {
+  position: relative;
+  height: 100%;
+  min-height: 320px;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  z-index: 1;
 }
 
 .panel {
@@ -285,9 +313,17 @@ button:disabled {
   height: 16px;
 }
 
+
 .editor-actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.editor-actions button {
+  flex: 1 1 140px;
+  min-width: 120px;
+  margin-bottom: 0.3rem;
 }
 
 .editor-actions button {
