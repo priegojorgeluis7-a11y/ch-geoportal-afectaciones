@@ -15,6 +15,12 @@ const btnClearFilters = document.getElementById("btn-clear-filters");
 const btnFit = document.getElementById("btn-fit");
 const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
+const afectacionSelect = document.getElementById("afectacion-select");
+const afectacionNumeroInput = document.getElementById("afectacion-numero");
+const afectacionDescripcionInput = document.getElementById("afectacion-descripcion");
+const btnSaveAfectacion = document.getElementById("btn-save-afectacion");
+const btnClearAfectacion = document.getElementById("btn-clear-afectacion");
+const afectFeedback = document.getElementById("afect-feedback");
 const pinAfectacionesSelect = document.getElementById("pin-afectaciones");
 const pinTitleInput = document.getElementById("pin-title");
 const pinDescriptionInput = document.getElementById("pin-description");
@@ -22,7 +28,8 @@ const gifUrlInput = document.getElementById("gif-url");
 const btnPlaceGifPin = document.getElementById("btn-place-gif-pin");
 const btnClearAllPins = document.getElementById("btn-clear-all-pins");
 const editorFeedback = document.getElementById("editor-feedback");
-const editorCard = document.querySelector(".editor-card");
+const gifEditorCard = document.querySelector(".editor-gif-card");
+const afectEditorCard = document.querySelector(".editor-afect-card");
 const saveToast = document.getElementById("save-toast");
 const videoModal = document.getElementById("video-modal");
 const videoModalClose = document.getElementById("video-modal-close");
@@ -143,8 +150,11 @@ if (videoModal && videoModalClose) {
 }
 
 const GIF_PINS_STORAGE_KEY = "gif-pins-v1";
+const AFECT_META_STORAGE_KEY = "afect-meta-v1";
 const afectacionCatalog = new Map();
 const afectacionFeatureIndex = new Map();
+let afectacionMeta = {};
+let selectedAfectacionKey = "";
 let gifPins = [];
 let pendingPinDraft = null;
 let gifPinLayer = null;
@@ -192,16 +202,65 @@ function buildStableFeatureKey(feature, fallbackIndex) {
   return `af${hash.toString(16)}`;
 }
 
+function getAfectacionMeta(key) {
+  if (!key) return null;
+  const entry = afectacionMeta[key];
+  if (!entry || typeof entry !== "object") return null;
+  return {
+    numero: String(entry.numero || "").trim(),
+    descripcion: String(entry.descripcion || "").trim(),
+  };
+}
+
+function buildAfectacionLabel(props) {
+  const municipio = String(props.nom_mun || "Sin municipio").trim();
+  const clasifica = String(props.Clasifica || "Sin clasificar").trim();
+  const cveGeo = String(props.cve_geo || "s/cve").trim();
+  const meta = getAfectacionMeta(buildAfectacionKey(props));
+  const numero = meta && meta.numero ? `#${meta.numero} ` : "";
+  return `${numero}${municipio} | ${clasifica} | ${cveGeo}`;
+}
+
+function loadAfectacionMetaFromStorage() {
+  try {
+    const raw = localStorage.getItem(AFECT_META_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      afectacionMeta = parsed;
+    }
+  } catch (_err) {
+    afectacionMeta = {};
+  }
+}
+
+function persistAfectacionMeta() {
+  localStorage.setItem(AFECT_META_STORAGE_KEY, JSON.stringify(afectacionMeta));
+}
+
+function showAfectFeedback(message, tone = "ok") {
+  if (!afectFeedback) return;
+  afectFeedback.textContent = message;
+  afectFeedback.classList.remove("ok", "warn");
+  if (tone) afectFeedback.classList.add(tone);
+
+  if (afectEditorCard && tone === "ok") {
+    afectEditorCard.classList.remove("saved-pulse");
+    void afectEditorCard.offsetWidth;
+    afectEditorCard.classList.add("saved-pulse");
+  }
+}
+
 function showEditorFeedback(message, tone = "ok") {
   if (!editorFeedback) return;
   editorFeedback.textContent = message;
   editorFeedback.classList.remove("ok", "warn");
   if (tone) editorFeedback.classList.add(tone);
 
-  if (editorCard && tone === "ok") {
-    editorCard.classList.remove("saved-pulse");
-    void editorCard.offsetWidth;
-    editorCard.classList.add("saved-pulse");
+  if (gifEditorCard && tone === "ok") {
+    gifEditorCard.classList.remove("saved-pulse");
+    void gifEditorCard.offsetWidth;
+    gifEditorCard.classList.add("saved-pulse");
   }
 
   if (saveToast && tone === "ok") {
@@ -233,15 +292,26 @@ function persistGifPins() {
 }
 
 function refreshPinAfectacionesSelect() {
-  if (!pinAfectacionesSelect) return;
-
   const entries = Array.from(afectacionCatalog.entries()).sort((a, b) =>
     a[1].label.localeCompare(b[1].label, "es")
   );
 
-  pinAfectacionesSelect.innerHTML = entries
-    .map(([key, item]) => `<option value="${escapeHtml(key)}">${escapeHtml(item.label)}</option>`)
-    .join("");
+  if (pinAfectacionesSelect) {
+    pinAfectacionesSelect.innerHTML = entries
+      .map(([key, item]) => `<option value="${escapeHtml(key)}">${escapeHtml(item.label)}</option>`)
+      .join("");
+  }
+
+  if (afectacionSelect) {
+    afectacionSelect.innerHTML = [
+      '<option value="">Selecciona una afectacion...</option>',
+      ...entries.map(([key, item]) => `<option value="${escapeHtml(key)}">${escapeHtml(item.label)}</option>`),
+    ].join("");
+
+    if (selectedAfectacionKey && afectacionCatalog.has(selectedAfectacionKey)) {
+      afectacionSelect.value = selectedAfectacionKey;
+    }
+  }
 }
 
 function getFeatureCenter(feature) {
@@ -329,8 +399,25 @@ function buildLinkedPinsHtml(afectKey) {
   return `<div style="margin-top:0.55rem;"><strong>Pines vinculados:</strong>${description}<div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.35rem;">${buttons}</div></div>`;
 }
 
+function fillAfectacionEditorForm(afectKey) {
+  selectedAfectacionKey = afectKey || "";
+
+  if (afectacionSelect) {
+    afectacionSelect.value = selectedAfectacionKey;
+  }
+
+  const meta = getAfectacionMeta(selectedAfectacionKey);
+  if (afectacionNumeroInput) {
+    afectacionNumeroInput.value = meta ? meta.numero : "";
+  }
+  if (afectacionDescripcionInput) {
+    afectacionDescripcionInput.value = meta ? meta.descripcion : "";
+  }
+}
+
 function openPopupForLayer(layer, props) {
   const afectKey = buildAfectacionKey(props);
+  fillAfectacionEditorForm(afectKey);
   layer.bindPopup(toPopupRows(props, afectKey), { maxWidth: 420 });
   layer.openPopup();
 }
@@ -375,6 +462,66 @@ function attachAfectacionLayerEvents(layer, props) {
   layer.on("click", (event) => {
     handleAfectacionLayerClick(layer, props, event);
   });
+}
+
+function setupAfectacionEditorEvents() {
+  if (!afectacionSelect || !afectacionNumeroInput || !afectacionDescripcionInput || !btnSaveAfectacion) {
+    return;
+  }
+
+  afectacionSelect.addEventListener("change", (event) => {
+    const key = String(event.target.value || "");
+    fillAfectacionEditorForm(key);
+  });
+
+  btnSaveAfectacion.addEventListener("click", () => {
+    if (!selectedAfectacionKey) {
+      showAfectFeedback("Selecciona una afectacion para guardar su ficha.", "warn");
+      return;
+    }
+
+    afectacionMeta[selectedAfectacionKey] = {
+      numero: String(afectacionNumeroInput.value || "").trim(),
+      descripcion: String(afectacionDescripcionInput.value || "").trim(),
+    };
+
+    persistAfectacionMeta();
+
+    const catalogItem = afectacionCatalog.get(selectedAfectacionKey);
+    if (catalogItem && catalogItem.props) {
+      catalogItem.label = buildAfectacionLabel(catalogItem.props);
+      afectacionCatalog.set(selectedAfectacionKey, catalogItem);
+      refreshPinAfectacionesSelect();
+      if (afectacionSelect) afectacionSelect.value = selectedAfectacionKey;
+    }
+
+    showAfectFeedback("Ficha de afectacion guardada correctamente.", "ok");
+    setStatus("Ficha de afectacion actualizada.");
+  });
+
+  if (btnClearAfectacion) {
+    btnClearAfectacion.addEventListener("click", () => {
+      if (!selectedAfectacionKey) {
+        showAfectFeedback("Selecciona una afectacion para limpiar su ficha.", "warn");
+        return;
+      }
+
+      delete afectacionMeta[selectedAfectacionKey];
+      persistAfectacionMeta();
+      fillAfectacionEditorForm(selectedAfectacionKey);
+
+      const catalogItem = afectacionCatalog.get(selectedAfectacionKey);
+      if (catalogItem && catalogItem.props) {
+        catalogItem.label = buildAfectacionLabel(catalogItem.props);
+        afectacionCatalog.set(selectedAfectacionKey, catalogItem);
+        refreshPinAfectacionesSelect();
+        if (afectacionSelect) afectacionSelect.value = selectedAfectacionKey;
+      }
+
+      showAfectFeedback("Se limpio la ficha de la afectacion seleccionada.", "warn");
+      setStatus("Ficha de afectacion limpiada.");
+    });
+  }
 }
 
 function setupPinEditorEvents() {
@@ -527,6 +674,8 @@ const CLUSTER_THRESHOLD = 140;
 let lastFilteredFeatures = [];
 
 loadGifPinsFromStorage();
+loadAfectacionMetaFromStorage();
+setupAfectacionEditorEvents();
 setupPinEditorEvents();
 
 function stopPointAnimation() {
@@ -607,12 +756,15 @@ function radiusByPondera(value) {
 }
 
 function toPopupRows(props, afectKey = "") {
+  const meta = getAfectacionMeta(afectKey);
   const fields = [
+    ["No. afectacion", meta && meta.numero ? meta.numero : ""],
     ["Tramo", props.tramo],
     ["Estado", props.nom_ent],
     ["Municipio", props.nom_mun],
     ["Clasificacion", props.Clasifica],
     ["Clave geo", props.cve_geo],
+    ["Descripcion", meta && meta.descripcion ? meta.descripcion : ""],
   ];
 
   const rows = fields
@@ -633,7 +785,7 @@ function normalizeFeature(rawFeature) {
     properties: {
       ...properties,
       nom_mun: properties.nom_mun || properties.Nom_mun || "Sin dato",
-      Clasifica: properties.Clasifica || properties.clasifica || "Sin dato",
+      Clasifica: properties.Clasifica || properties.clasifica || "Sin clasificar",
       Pondera: properties.Pondera || properties.pondera || "",
       nom_ent: properties.nom_ent || properties.Nom_ent || "",
       tramo: properties.tramo || properties.Tramo || "",
@@ -643,9 +795,19 @@ function normalizeFeature(rawFeature) {
 }
 
 function isValidAfectacion(feature) {
-  const props = feature && feature.properties ? feature.properties : {};
-  const clasifica = String(props.Clasifica || "").trim().toLowerCase();
-  return clasifica && clasifica !== "sin dato";
+  const geometry = feature && feature.geometry ? feature.geometry : null;
+  if (!geometry || !geometry.type) return false;
+
+  const type = String(geometry.type);
+  if (type === "GeometryCollection") {
+    return Array.isArray(geometry.geometries) && geometry.geometries.length > 0;
+  }
+
+  if (type === "Point") {
+    return Array.isArray(geometry.coordinates) && geometry.coordinates.length >= 2;
+  }
+
+  return true;
 }
 
 function escapeHtml(value) {
@@ -1077,16 +1239,24 @@ async function loadKmzLayer() {
     };
 
     afectacionCatalog.clear();
+    afectacionFeatureIndex.clear();
     for (const feature of sourceFeatureCollection.features) {
       const props = feature.properties || {};
       const key = buildAfectacionKey(props);
+      afectacionFeatureIndex.set(key, feature);
       if (afectacionCatalog.has(key)) continue;
       afectacionCatalog.set(key, {
         label: buildAfectacionLabel(props),
         props,
       });
     }
+
+    if (selectedAfectacionKey && !afectacionCatalog.has(selectedAfectacionKey)) {
+      selectedAfectacionKey = "";
+    }
+
     refreshPinAfectacionesSelect();
+    fillAfectacionEditorForm(selectedAfectacionKey);
     renderGifPinsAndLinks();
 
     allMunicipioCounts = countByField(sourceFeatureCollection.features, "nom_mun");
