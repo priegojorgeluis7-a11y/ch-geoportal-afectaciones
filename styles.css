@@ -413,6 +413,19 @@ button:disabled {
   font-size: 0.84rem;
 }
 
+.btn-open-gif {
+  border: 1px solid rgba(11, 56, 66, 0.25);
+  background: linear-gradient(145deg, #0c5f73, #2b99b2);
+  color: #ffffff;
+  padding: 0.38rem 0.7rem;
+}
+
+.btn-open-gif:hover {
+  transform: none;
+  box-shadow: none;
+  filter: brightness(1.04);
+}
+
 .map-point {
   display: inline-block;
   width: 15px;

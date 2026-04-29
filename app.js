@@ -148,8 +148,8 @@ let afectacionMetaByKey = {};
 const afectacionCatalog = new Map();
 
 function buildAfectacionKey(props) {
-  const afectId = String(props.afect_id || "").trim();
-  if (afectId) return `id:${afectId}`;
+  const uid = String(props._afect_uid || "").trim();
+  if (uid) return `uid:${uid}`;
 
   const cveGeo = String(props.cve_geo || "").trim();
   if (cveGeo) return `cve:${cveGeo.toLowerCase()}`;
@@ -161,7 +161,7 @@ function buildAfectacionKey(props) {
 }
 
 function buildAfectacionLabel(props, manualNumber = "") {
-  const afectId = String(manualNumber || props.afect_id || "?").trim();
+  const afectId = String(manualNumber || "sin numero").trim();
   const cveGeo = String(props.cve_geo || "").trim() || "sin clave";
   const nomMun = String(props.nom_mun || "Sin municipio").trim();
   const clasifica = String(props.Clasifica || "Sin clasificacion").trim();
@@ -216,7 +216,8 @@ function getPropsWithMeta(props) {
   const meta = getAfectacionMeta(key);
   return {
     ...props,
-    afect_id: meta.number || props.afect_id,
+    afect_id: meta.number,
+    user_gif_url: meta.gifUrl,
     user_description: meta.description,
   };
 }
@@ -276,7 +277,7 @@ function closeGifModal() {
 
 function openPopupForLayer(layer, props) {
   const enrichedProps = getPropsWithMeta(props);
-  layer.bindPopup(toPopupRows(enrichedProps), { maxWidth: 360 });
+  layer.bindPopup(toPopupRows(enrichedProps), { maxWidth: 380 });
   layer.openPopup();
 }
 
@@ -287,17 +288,10 @@ function handleAfectacionLayerClick(layer, props) {
     selectedAfectacionKeyForEdit = key;
     if (afectacionSelect) afectacionSelect.value = key;
     const meta = getAfectacionMeta(key);
-    if (afectacionNumberInput) afectacionNumberInput.value = meta.number || String(props.afect_id || "");
+    if (afectacionNumberInput) afectacionNumberInput.value = meta.number;
     if (gifUrlInput) gifUrlInput.value = meta.gifUrl;
     if (afectacionDescriptionInput) afectacionDescriptionInput.value = meta.description;
     openPopupForLayer(layer, props);
-    return;
-  }
-
-  const meta = getAfectacionMeta(key);
-  if (meta.gifUrl) {
-    closeViaductoVideo();
-    openGifModal(meta.gifUrl, props);
     return;
   }
 
@@ -327,7 +321,7 @@ function setupGifEditorEvents() {
     setStatus(
       editModeEnabled
         ? "Modo edicion activo: selecciona una afectacion y asigna su GIF."
-        : "Modo vista activo: al hacer clic se abrira el GIF asignado."
+        : "Modo vista activo: al hacer clic veras el detalle y el boton Ver GIF."
     );
   });
 
@@ -398,6 +392,20 @@ if (gifModal && gifModalClose) {
     }
   });
 }
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+
+  const gifBtn = target.closest(".btn-open-gif");
+  if (!gifBtn) return;
+
+  const gifUrl = (gifBtn.dataset.gifUrl || "").trim();
+  const municipio = (gifBtn.dataset.municipio || "Afectacion").trim();
+  if (!gifUrl) return;
+
+  openGifModal(gifUrl, { nom_mun: municipio });
+});
 
 function addViaductoMarker() {
   const viaductoIcon = L.divIcon({
@@ -531,7 +539,7 @@ function radiusByPondera(value) {
 
 function toPopupRows(props) {
   const fields = [
-    ["Afectacion", props.afect_id ? `#${props.afect_id}` : ""],
+    ["Afectacion", props.afect_id ? `#${props.afect_id}` : "Sin numero"],
     ["Tramo", props.tramo],
     ["Estado", props.nom_ent],
     ["Municipio", props.nom_mun],
@@ -545,7 +553,13 @@ function toPopupRows(props) {
     .map((item) => `<tr><th>${item[0]}</th><td>${item[1]}</td></tr>`)
     .join("");
 
-  return `<table style="border-collapse: collapse; width: 100%;">${rows}</table>`;
+  const gifButton = props.user_gif_url
+    ? `<div style="margin-top:0.55rem;"><button type="button" class="btn-open-gif" data-gif-url="${escapeHtml(
+        props.user_gif_url
+      )}" data-municipio="${escapeHtml(props.nom_mun || "Afectacion")}">Ver GIF</button></div>`
+    : "";
+
+  return `<table style="border-collapse: collapse; width: 100%;">${rows}</table>${gifButton}`;
 }
 
 function normalizeFeature(rawFeature) {
@@ -985,17 +999,17 @@ async function loadKmzLayer() {
     const featureCollection = await parseKmzToGeoJson(KMZ_PATH);
     const normalizedFeatures = (featureCollection.features || []).map(normalizeFeature);
     const validFeatures = normalizedFeatures.filter(isValidAfectacion);
-    const enumeratedFeatures = validFeatures.map((feature, index) => ({
+    const keyedFeatures = validFeatures.map((feature, index) => ({
       ...feature,
       properties: {
         ...(feature.properties || {}),
-        afect_id: String(index + 1),
+        _afect_uid: String(index + 1),
       },
     }));
 
     sourceFeatureCollection = {
       type: "FeatureCollection",
-      features: enumeratedFeatures,
+      features: keyedFeatures,
     };
 
     afectacionCatalog.clear();
