@@ -44,6 +44,7 @@ const afectacionGif = document.getElementById("afectacion-gif");
 const gifModalTitle = document.getElementById("gif-modal-title");
 
 // Toggle panel en móvil
+// cache-bust: 20260429-2
 if (btnPanelToggle && filterPanel) {
   btnPanelToggle.addEventListener("click", () => {
     const isOpen = filterPanel.classList.toggle("open");
