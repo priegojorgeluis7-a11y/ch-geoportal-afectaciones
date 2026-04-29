@@ -197,6 +197,10 @@ button:disabled {
   resize: vertical;
 }
 
+.pin-multi {
+  min-height: 120px;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -482,6 +486,25 @@ button:disabled {
   transform: none;
   box-shadow: none;
   filter: brightness(1.04);
+}
+
+.gif-pin-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.gif-pin-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #0b6b51, #1f9b79);
+  border: 2px solid #e8fff7;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.7rem;
+  box-shadow: 0 8px 16px rgba(11, 107, 81, 0.28);
 }
 
 .map-point {

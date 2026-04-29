@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-  <link rel="stylesheet" href="styles.css?v=20260429l" />
+    <link rel="stylesheet" href="styles.css?v=20260429m" />
 </head>
 <body>
   <div class="background-shape shape-1"></div>
@@ -72,22 +72,17 @@
       </section>
 
       <section class="card editor-card">
-        <h2>Editor de afectaciones</h2>
-        <label class="mode-toggle" for="edit-mode-toggle">
-          <input id="edit-mode-toggle" type="checkbox" />
-          <span>Modo edicion</span>
-        </label>
-        <p class="hint">Cada punto tiene numero, descripcion y GIF. En modo vista, el clic abre el GIF en esta misma pagina.</p>
-        <select id="afectacion-select" class="text-filter" aria-label="Seleccionar afectacion"></select>
-        <input id="afectacion-number" class="text-filter" type="text" placeholder="Numero de afectacion (ej. 58)" />
-        <textarea id="afectacion-description" class="text-filter text-area" placeholder="Descripcion de la afectacion..."></textarea>
+          <h2>Pines GIF (uno a varios)</h2>
+          <p class="hint">Selecciona varias afectaciones, escribe URL del GIF y luego haz clic en el mapa para colocar el pin.</p>
+          <select id="pin-afectaciones" class="text-filter pin-multi" aria-label="Vincular afectaciones" multiple></select>
+          <input id="pin-title" class="text-filter" type="text" placeholder="Titulo del pin (opcional)" />
+          <textarea id="pin-description" class="text-filter text-area" placeholder="Descripcion del pin (se mostrara en las fichas vinculadas)..."></textarea>
         <input id="gif-url" class="text-filter" type="text" placeholder="URL del GIF (https://...gif)" />
         <p id="editor-feedback" class="editor-feedback" aria-live="polite"></p>
         <div class="editor-actions">
-          <button id="btn-save-gif" type="button">Guardar ficha</button>
-          <button id="btn-remove-gif" type="button">Limpiar ficha</button>
+            <button id="btn-place-gif-pin" type="button">Colocar pin GIF</button>
+            <button id="btn-clear-all-pins" type="button">Borrar pines</button>
         </div>
-        <button id="btn-clear-all-fichas" type="button" class="btn-clear-all">Borrar todas las fichas</button>
       </section>
     </aside>
 
@@ -128,6 +123,6 @@
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
-  <script src="app.js?v=20260429l"></script>
+  <script src="app.js?v=20260429m"></script>
 </body>
 </html>

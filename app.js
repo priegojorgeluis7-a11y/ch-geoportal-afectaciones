@@ -15,14 +15,12 @@ const btnClearFilters = document.getElementById("btn-clear-filters");
 const btnFit = document.getElementById("btn-fit");
 const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
-const editModeToggle = document.getElementById("edit-mode-toggle");
-const afectacionSelect = document.getElementById("afectacion-select");
-const afectacionNumberInput = document.getElementById("afectacion-number");
-const afectacionDescriptionInput = document.getElementById("afectacion-description");
+const pinAfectacionesSelect = document.getElementById("pin-afectaciones");
+const pinTitleInput = document.getElementById("pin-title");
+const pinDescriptionInput = document.getElementById("pin-description");
 const gifUrlInput = document.getElementById("gif-url");
-const btnSaveGif = document.getElementById("btn-save-gif");
-const btnRemoveGif = document.getElementById("btn-remove-gif");
-const btnClearAllFichas = document.getElementById("btn-clear-all-fichas");
+const btnPlaceGifPin = document.getElementById("btn-place-gif-pin");
+const btnClearAllPins = document.getElementById("btn-clear-all-pins");
 const editorFeedback = document.getElementById("editor-feedback");
 const editorCard = document.querySelector(".editor-card");
 const saveToast = document.getElementById("save-toast");
@@ -144,13 +142,13 @@ if (videoModal && videoModalClose) {
   });
 }
 
-const AFFECT_META_STORAGE_KEY = "afectaciones-meta-v2";
-const GIF_LINKS_LEGACY_STORAGE_KEY = "afectaciones-gif-links-v1";
-
-let editModeEnabled = false;
-let selectedAfectacionKeyForEdit = "";
-let afectacionMetaByKey = {};
+const GIF_PINS_STORAGE_KEY = "gif-pins-v1";
 const afectacionCatalog = new Map();
+const afectacionFeatureIndex = new Map();
+let gifPins = [];
+let pendingPinDraft = null;
+let gifPinLayer = null;
+let gifPinLinksLayer = null;
 
 function buildAfectacionKey(props) {
   const stableKey = String(props._afect_key || "").trim();
@@ -166,14 +164,6 @@ function buildAfectacionKey(props) {
   const clasifica = String(props.Clasifica || "").trim().toLowerCase();
   const tramo = String(props.tramo || "").trim().toLowerCase();
   return `combo:${nomMun}|${clasifica}|${tramo}`;
-}
-
-function buildAfectacionLabel(props, manualNumber = "") {
-  const afectId = String(manualNumber || "sin numero").trim();
-  const cveGeo = String(props.cve_geo || "").trim() || "sin clave";
-  const nomMun = String(props.nom_mun || "Sin municipio").trim();
-  const clasifica = String(props.Clasifica || "Sin clasificacion").trim();
-  return `#${afectId} | ${cveGeo} | ${nomMun} | ${clasifica}`;
 }
 
 function buildStableFeatureKey(feature, fallbackIndex) {
@@ -202,49 +192,6 @@ function buildStableFeatureKey(feature, fallbackIndex) {
   return `af${hash.toString(16)}`;
 }
 
-function loadAfectacionMetaFromStorage() {
-  try {
-    const rawMeta = localStorage.getItem(AFFECT_META_STORAGE_KEY);
-    if (rawMeta) {
-      const parsed = JSON.parse(rawMeta);
-      if (parsed && typeof parsed === "object") {
-        afectacionMetaByKey = parsed;
-        return;
-      }
-    }
-
-    // Migracion desde el formato anterior (solo GIF por clave)
-    const rawLegacy = localStorage.getItem(GIF_LINKS_LEGACY_STORAGE_KEY);
-    if (rawLegacy) {
-      const parsedLegacy = JSON.parse(rawLegacy);
-      if (parsedLegacy && typeof parsedLegacy === "object") {
-        for (const [key, value] of Object.entries(parsedLegacy)) {
-          if (!value) continue;
-          afectacionMetaByKey[key] = {
-            gifUrl: String(value),
-            description: "",
-          };
-        }
-      }
-    }
-  } catch (_err) {
-    afectacionMetaByKey = {};
-  }
-}
-
-function persistAfectacionMeta() {
-  localStorage.setItem(AFFECT_META_STORAGE_KEY, JSON.stringify(afectacionMetaByKey));
-}
-
-function getAfectacionMeta(key) {
-  const meta = afectacionMetaByKey[key] || {};
-  return {
-    number: String(meta.number || "").trim(),
-    gifUrl: String(meta.gifUrl || "").trim(),
-    description: String(meta.description || "").trim(),
-  };
-}
-
 function showEditorFeedback(message, tone = "ok") {
   if (!editorFeedback) return;
   editorFeedback.textContent = message;
@@ -268,58 +215,199 @@ function showEditorFeedback(message, tone = "ok") {
   }
 }
 
-function clearAllFichas() {
-  afectacionMetaByKey = {};
-  localStorage.removeItem(AFFECT_META_STORAGE_KEY);
-  localStorage.removeItem(GIF_LINKS_LEGACY_STORAGE_KEY);
-
-  if (afectacionNumberInput) afectacionNumberInput.value = "";
-  if (gifUrlInput) gifUrlInput.value = "";
-  if (afectacionDescriptionInput) afectacionDescriptionInput.value = "";
-  refreshEditorSelect();
-  showEditorFeedback("Se borraron todas las fichas guardadas.", "warn");
+function loadGifPinsFromStorage() {
+  try {
+    const raw = localStorage.getItem(GIF_PINS_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      gifPins = parsed;
+    }
+  } catch (_err) {
+    gifPins = [];
+  }
 }
 
-function getPropsWithMeta(props) {
-  const key = buildAfectacionKey(props);
-  const meta = getAfectacionMeta(key);
-  return {
-    ...props,
-    afect_id: meta.number,
-    user_gif_url: meta.gifUrl,
-    user_description: meta.description,
-  };
+function persistGifPins() {
+  localStorage.setItem(GIF_PINS_STORAGE_KEY, JSON.stringify(gifPins));
 }
 
-function refreshEditorSelect() {
-  if (!afectacionSelect) return;
+function refreshPinAfectacionesSelect() {
+  if (!pinAfectacionesSelect) return;
 
   const entries = Array.from(afectacionCatalog.entries()).sort((a, b) =>
     a[1].label.localeCompare(b[1].label, "es")
   );
 
-  const options = ['<option value="">Seleccionar afectacion...</option>'];
-  for (const [key, item] of entries) {
-    const meta = getAfectacionMeta(key);
-    const label = buildAfectacionLabel(item.props, meta.number);
-    options.push(`<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`);
+  pinAfectacionesSelect.innerHTML = entries
+    .map(([key, item]) => `<option value="${escapeHtml(key)}">${escapeHtml(item.label)}</option>`)
+    .join("");
+}
+
+function getFeatureCenter(feature) {
+  const geometry = feature.geometry || {};
+
+  if (geometry.type === "Point" && Array.isArray(geometry.coordinates)) {
+    const [lng, lat] = geometry.coordinates;
+    return L.latLng(lat, lng);
   }
 
-  afectacionSelect.innerHTML = options.join("");
+  const bounds = L.geoJSON(feature).getBounds();
+  if (!bounds.isValid()) return null;
+  return bounds.getCenter();
+}
 
-  if (selectedAfectacionKeyForEdit) {
-    afectacionSelect.value = selectedAfectacionKeyForEdit;
+function renderGifPinsAndLinks() {
+  if (!gifPinLayer) {
+    gifPinLayer = L.layerGroup().addTo(map);
+  }
+  if (!gifPinLinksLayer) {
+    gifPinLinksLayer = L.layerGroup().addTo(map);
+  }
+
+  gifPinLayer.clearLayers();
+  gifPinLinksLayer.clearLayers();
+
+  for (const pin of gifPins) {
+    const marker = L.marker([pin.lat, pin.lng], {
+      pane: "poiPane",
+      icon: L.divIcon({
+        className: "gif-pin-wrap",
+        html: '<div class="gif-pin-icon">GIF</div>',
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+      }),
+      title: pin.title || "Pin GIF",
+    });
+
+    marker.on("click", () => {
+      openGifModal(pin.gifUrl, { nom_mun: pin.title || "Pin GIF" });
+    });
+
+    marker.bindTooltip(pin.title || "Pin GIF", { direction: "top", offset: [0, -16] });
+    marker.addTo(gifPinLayer);
+
+    for (const afectKey of pin.afectKeys || []) {
+      const feature = afectacionFeatureIndex.get(afectKey);
+      if (!feature) continue;
+
+      const center = getFeatureCenter(feature);
+      if (!center) continue;
+
+      L.polyline(
+        [
+          [pin.lat, pin.lng],
+          [center.lat, center.lng],
+        ],
+        {
+          pane: "boundaryPane",
+          color: "#0c5f73",
+          weight: 2,
+          opacity: 0.55,
+          dashArray: "6 4",
+          interactive: false,
+        }
+      ).addTo(gifPinLinksLayer);
+    }
   }
 }
 
-function syncEditorInputForSelection() {
-  if (!gifUrlInput || !afectacionSelect || !afectacionDescriptionInput || !afectacionNumberInput) return;
+function buildLinkedPinsHtml(afectKey) {
+  const linked = gifPins.filter((pin) => Array.isArray(pin.afectKeys) && pin.afectKeys.includes(afectKey));
+  if (!linked.length) return "";
 
-  selectedAfectacionKeyForEdit = afectacionSelect.value || "";
-  const meta = getAfectacionMeta(selectedAfectacionKeyForEdit);
-  afectacionNumberInput.value = meta.number;
-  gifUrlInput.value = meta.gifUrl;
-  afectacionDescriptionInput.value = meta.description;
+  const description = linked[0].description ? `<p style="margin:0.45rem 0 0.2rem;">${escapeHtml(linked[0].description)}</p>` : "";
+  const buttons = linked
+    .map(
+      (pin) =>
+        `<button type="button" class="btn-open-gif" data-gif-url="${escapeHtml(pin.gifUrl)}" data-municipio="${escapeHtml(
+          pin.title || "Pin GIF"
+        )}">Ver GIF: ${escapeHtml(pin.title || "Pin")}</button>`
+    )
+    .join(" ");
+
+  return `<div style="margin-top:0.55rem;"><strong>Pines vinculados:</strong>${description}<div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.35rem;">${buttons}</div></div>`;
+}
+
+function openPopupForLayer(layer, props) {
+  const afectKey = buildAfectacionKey(props);
+  layer.bindPopup(toPopupRows(props, afectKey), { maxWidth: 420 });
+  layer.openPopup();
+}
+
+function handleAfectacionLayerClick(layer, props) {
+  openPopupForLayer(layer, props);
+}
+
+function attachAfectacionLayerEvents(layer, props) {
+  layer.on("click", () => {
+    handleAfectacionLayerClick(layer, props);
+  });
+}
+
+function setupPinEditorEvents() {
+  if (!pinAfectacionesSelect || !pinTitleInput || !pinDescriptionInput || !gifUrlInput || !btnPlaceGifPin) {
+    return;
+  }
+
+  btnPlaceGifPin.addEventListener("click", () => {
+    const gifUrl = String(gifUrlInput.value || "").trim();
+    const title = String(pinTitleInput.value || "").trim();
+    const description = String(pinDescriptionInput.value || "").trim();
+    const afectKeys = Array.from(pinAfectacionesSelect.selectedOptions).map((opt) => opt.value);
+
+    if (!gifUrl) {
+      showEditorFeedback("Captura una URL GIF antes de colocar el pin.", "warn");
+      return;
+    }
+
+    if (!afectKeys.length) {
+      showEditorFeedback("Selecciona al menos una afectacion para vincular.", "warn");
+      return;
+    }
+
+    pendingPinDraft = {
+      gifUrl,
+      title,
+      description,
+      afectKeys,
+    };
+
+    setStatus("Haz clic en el mapa para colocar el pin GIF.");
+    showEditorFeedback("Listo: haz clic en el mapa para colocar el pin.", "ok");
+  });
+
+  if (btnClearAllPins) {
+    btnClearAllPins.addEventListener("click", () => {
+      gifPins = [];
+      persistGifPins();
+      renderGifPinsAndLinks();
+      showEditorFeedback("Se borraron todos los pines GIF.", "warn");
+      setStatus("Se borraron todos los pines GIF.");
+    });
+  }
+
+  map.on("click", (event) => {
+    if (!pendingPinDraft) return;
+
+    const pin = {
+      id: `pin-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      lat: event.latlng.lat,
+      lng: event.latlng.lng,
+      gifUrl: pendingPinDraft.gifUrl,
+      title: pendingPinDraft.title,
+      description: pendingPinDraft.description,
+      afectKeys: pendingPinDraft.afectKeys,
+    };
+
+    gifPins.push(pin);
+    persistGifPins();
+    renderGifPinsAndLinks();
+
+    pendingPinDraft = null;
+    showEditorFeedback("Pin GIF guardado y vinculado correctamente.", "ok");
+    setStatus("Pin GIF creado y vinculado.");
+  });
 }
 
 function openGifModal(url, props) {
@@ -342,121 +430,6 @@ function closeGifModal() {
   gifModal.classList.remove("open");
   gifModal.setAttribute("aria-hidden", "true");
   afectacionGif.removeAttribute("src");
-}
-
-function openPopupForLayer(layer, props) {
-  const enrichedProps = getPropsWithMeta(props);
-  layer.bindPopup(toPopupRows(enrichedProps), { maxWidth: 380 });
-  layer.openPopup();
-}
-
-function handleAfectacionLayerClick(layer, props) {
-  const key = buildAfectacionKey(props);
-
-  if (editModeEnabled) {
-    selectedAfectacionKeyForEdit = key;
-    if (afectacionSelect) afectacionSelect.value = key;
-    const meta = getAfectacionMeta(key);
-    if (afectacionNumberInput) afectacionNumberInput.value = meta.number;
-    if (gifUrlInput) gifUrlInput.value = meta.gifUrl;
-    if (afectacionDescriptionInput) afectacionDescriptionInput.value = meta.description;
-    openPopupForLayer(layer, props);
-    return;
-  }
-
-  openPopupForLayer(layer, props);
-}
-
-function attachAfectacionLayerEvents(layer, props) {
-  layer.on("click", () => {
-    handleAfectacionLayerClick(layer, props);
-  });
-}
-
-function setupGifEditorEvents() {
-  if (
-    !editModeToggle ||
-    !afectacionSelect ||
-    !afectacionNumberInput ||
-    !gifUrlInput ||
-    !afectacionDescriptionInput ||
-    !btnSaveGif ||
-    !btnRemoveGif
-  )
-    return;
-
-  editModeToggle.addEventListener("change", () => {
-    editModeEnabled = editModeToggle.checked;
-    setStatus(
-      editModeEnabled
-        ? "Modo edicion activo: selecciona una afectacion y asigna su GIF."
-        : "Modo vista activo: al hacer clic veras el detalle y el boton Ver GIF."
-    );
-  });
-
-  afectacionSelect.addEventListener("change", () => {
-    syncEditorInputForSelection();
-  });
-
-  btnSaveGif.addEventListener("click", () => {
-    const key = afectacionSelect.value || "";
-    const number = String(afectacionNumberInput.value || "").trim();
-    const gifUrl = String(gifUrlInput.value || "").trim();
-    const description = String(afectacionDescriptionInput.value || "").trim();
-
-    if (!key) {
-      setStatus("Selecciona una afectacion antes de guardar la ficha.");
-      showEditorFeedback("Selecciona una afectacion para guardar.", "warn");
-      return;
-    }
-
-    if (!number) {
-      setStatus("Captura el numero de afectacion antes de guardar.");
-      showEditorFeedback("Falta capturar el numero de afectacion.", "warn");
-      return;
-    }
-
-    if (!gifUrl && !description) {
-      setStatus("Captura descripcion y/o GIF para guardar la ficha.");
-      showEditorFeedback("Escribe descripcion y/o GIF antes de guardar.", "warn");
-      return;
-    }
-
-    afectacionMetaByKey[key] = {
-      number,
-      gifUrl,
-      description,
-    };
-    persistAfectacionMeta();
-    refreshEditorSelect();
-    setStatus("Ficha guardada para la afectacion seleccionada.");
-    showEditorFeedback("Ficha guardada correctamente.", "ok");
-  });
-
-  btnRemoveGif.addEventListener("click", () => {
-    const key = afectacionSelect.value || "";
-    if (!key) {
-      setStatus("Selecciona una afectacion para limpiar su ficha.");
-      showEditorFeedback("Selecciona una afectacion para limpiar.", "warn");
-      return;
-    }
-
-    delete afectacionMetaByKey[key];
-    persistAfectacionMeta();
-    refreshEditorSelect();
-    afectacionNumberInput.value = "";
-    gifUrlInput.value = "";
-    afectacionDescriptionInput.value = "";
-    setStatus("Ficha limpiada de la afectacion seleccionada.");
-    showEditorFeedback("Ficha limpiada correctamente.", "ok");
-  });
-
-  if (btnClearAllFichas) {
-    btnClearAllFichas.addEventListener("click", () => {
-      clearAllFichas();
-      setStatus("Se borraron todos los links y descripciones guardados.");
-    });
-  }
 }
 
 if (gifModal && gifModalClose) {
@@ -539,8 +512,8 @@ let allMunicipioCounts = {};
 const CLUSTER_THRESHOLD = 140;
 let lastFilteredFeatures = [];
 
-loadAfectacionMetaFromStorage();
-setupGifEditorEvents();
+loadGifPinsFromStorage();
+setupPinEditorEvents();
 
 function stopPointAnimation() {
   if (pointAnimationFrameId) {
@@ -619,15 +592,13 @@ function radiusByPondera(value) {
   return Math.max(8, Math.min(16, 6 + num * 1.0));
 }
 
-function toPopupRows(props) {
+function toPopupRows(props, afectKey = "") {
   const fields = [
-    ["Afectacion", props.afect_id ? `#${props.afect_id}` : "Sin numero"],
     ["Tramo", props.tramo],
     ["Estado", props.nom_ent],
     ["Municipio", props.nom_mun],
     ["Clasificacion", props.Clasifica],
     ["Clave geo", props.cve_geo],
-    ["Descripcion", props.user_description],
   ];
 
   const rows = fields
@@ -635,13 +606,9 @@ function toPopupRows(props) {
     .map((item) => `<tr><th>${item[0]}</th><td>${item[1]}</td></tr>`)
     .join("");
 
-  const gifButton = props.user_gif_url
-    ? `<div style="margin-top:0.55rem;"><button type="button" class="btn-open-gif" data-gif-url="${escapeHtml(
-        props.user_gif_url
-      )}" data-municipio="${escapeHtml(props.nom_mun || "Afectacion")}">Ver GIF</button></div>`
-    : "";
+  const linkedPins = buildLinkedPinsHtml(afectKey);
 
-  return `<table style="border-collapse: collapse; width: 100%;">${rows}</table>${gifButton}`;
+  return `<table style="border-collapse: collapse; width: 100%;">${rows}</table>${linkedPins}`;
 }
 
 function normalizeFeature(rawFeature) {
@@ -1105,7 +1072,8 @@ async function loadKmzLayer() {
         props,
       });
     }
-    refreshEditorSelect();
+    refreshPinAfectacionesSelect();
+    renderGifPinsAndLinks();
 
     allMunicipioCounts = countByField(sourceFeatureCollection.features, "nom_mun");
 
