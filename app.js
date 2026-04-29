@@ -17,6 +17,7 @@ const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
 const editModeToggle = document.getElementById("edit-mode-toggle");
 const afectacionSelect = document.getElementById("afectacion-select");
+const afectacionNumberInput = document.getElementById("afectacion-number");
 const afectacionDescriptionInput = document.getElementById("afectacion-description");
 const gifUrlInput = document.getElementById("gif-url");
 const btnSaveGif = document.getElementById("btn-save-gif");
@@ -159,8 +160,8 @@ function buildAfectacionKey(props) {
   return `combo:${nomMun}|${clasifica}|${tramo}`;
 }
 
-function buildAfectacionLabel(props) {
-  const afectId = String(props.afect_id || "?").trim();
+function buildAfectacionLabel(props, manualNumber = "") {
+  const afectId = String(manualNumber || props.afect_id || "?").trim();
   const cveGeo = String(props.cve_geo || "").trim() || "sin clave";
   const nomMun = String(props.nom_mun || "Sin municipio").trim();
   const clasifica = String(props.Clasifica || "Sin clasificacion").trim();
@@ -204,6 +205,7 @@ function persistAfectacionMeta() {
 function getAfectacionMeta(key) {
   const meta = afectacionMetaByKey[key] || {};
   return {
+    number: String(meta.number || "").trim(),
     gifUrl: String(meta.gifUrl || "").trim(),
     description: String(meta.description || "").trim(),
   };
@@ -214,6 +216,7 @@ function getPropsWithMeta(props) {
   const meta = getAfectacionMeta(key);
   return {
     ...props,
+    afect_id: meta.number || props.afect_id,
     user_description: meta.description,
   };
 }
@@ -227,7 +230,9 @@ function refreshEditorSelect() {
 
   const options = ['<option value="">Seleccionar afectacion...</option>'];
   for (const [key, item] of entries) {
-    options.push(`<option value="${escapeHtml(key)}">${escapeHtml(item.label)}</option>`);
+    const meta = getAfectacionMeta(key);
+    const label = buildAfectacionLabel(item.props, meta.number);
+    options.push(`<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`);
   }
 
   afectacionSelect.innerHTML = options.join("");
@@ -238,10 +243,11 @@ function refreshEditorSelect() {
 }
 
 function syncEditorInputForSelection() {
-  if (!gifUrlInput || !afectacionSelect || !afectacionDescriptionInput) return;
+  if (!gifUrlInput || !afectacionSelect || !afectacionDescriptionInput || !afectacionNumberInput) return;
 
   selectedAfectacionKeyForEdit = afectacionSelect.value || "";
   const meta = getAfectacionMeta(selectedAfectacionKeyForEdit);
+  afectacionNumberInput.value = meta.number;
   gifUrlInput.value = meta.gifUrl;
   afectacionDescriptionInput.value = meta.description;
 }
@@ -281,6 +287,7 @@ function handleAfectacionLayerClick(layer, props) {
     selectedAfectacionKeyForEdit = key;
     if (afectacionSelect) afectacionSelect.value = key;
     const meta = getAfectacionMeta(key);
+    if (afectacionNumberInput) afectacionNumberInput.value = meta.number || String(props.afect_id || "");
     if (gifUrlInput) gifUrlInput.value = meta.gifUrl;
     if (afectacionDescriptionInput) afectacionDescriptionInput.value = meta.description;
     openPopupForLayer(layer, props);
@@ -307,6 +314,7 @@ function setupGifEditorEvents() {
   if (
     !editModeToggle ||
     !afectacionSelect ||
+    !afectacionNumberInput ||
     !gifUrlInput ||
     !afectacionDescriptionInput ||
     !btnSaveGif ||
@@ -329,11 +337,17 @@ function setupGifEditorEvents() {
 
   btnSaveGif.addEventListener("click", () => {
     const key = afectacionSelect.value || "";
+    const number = String(afectacionNumberInput.value || "").trim();
     const gifUrl = String(gifUrlInput.value || "").trim();
     const description = String(afectacionDescriptionInput.value || "").trim();
 
     if (!key) {
       setStatus("Selecciona una afectacion antes de guardar la ficha.");
+      return;
+    }
+
+    if (!number) {
+      setStatus("Captura el numero de afectacion antes de guardar.");
       return;
     }
 
@@ -343,10 +357,12 @@ function setupGifEditorEvents() {
     }
 
     afectacionMetaByKey[key] = {
+      number,
       gifUrl,
       description,
     };
     persistAfectacionMeta();
+    refreshEditorSelect();
     setStatus("Ficha guardada para la afectacion seleccionada.");
   });
 
@@ -359,6 +375,8 @@ function setupGifEditorEvents() {
 
     delete afectacionMetaByKey[key];
     persistAfectacionMeta();
+    refreshEditorSelect();
+    afectacionNumberInput.value = "";
     gifUrlInput.value = "";
     afectacionDescriptionInput.value = "";
     setStatus("Ficha limpiada de la afectacion seleccionada.");
@@ -987,6 +1005,7 @@ async function loadKmzLayer() {
       if (afectacionCatalog.has(key)) continue;
       afectacionCatalog.set(key, {
         label: buildAfectacionLabel(props),
+        props,
       });
     }
     refreshEditorSelect();
