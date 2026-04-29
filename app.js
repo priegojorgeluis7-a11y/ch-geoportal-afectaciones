@@ -443,6 +443,12 @@ function renderMunicipioBoundary(municipio) {
   drawMunicipioBoundary(boundaryFeature);
 }
 
+function getClusterTone(childCount) {
+  if (childCount >= 40) return "large";
+  if (childCount >= 10) return "medium";
+  return "small";
+}
+
 function renderCurrentLayer(filteredFeatures) {
   stopPointAnimation();
 
@@ -460,6 +466,16 @@ function renderCurrentLayer(filteredFeatures) {
       spiderfyOnMaxZoom: true,
       maxClusterRadius: 52,
       disableClusteringAtZoom: 15,
+      iconCreateFunction(cluster) {
+        const childCount = cluster.getChildCount();
+        const tone = getClusterTone(childCount);
+
+        return L.divIcon({
+          html: `<div><span>${childCount}</span></div>`,
+          className: `marker-cluster marker-cluster-custom marker-cluster-${tone}`,
+          iconSize: L.point(40, 40),
+        });
+      },
     });
 
     const nonPointGroup = L.layerGroup();
