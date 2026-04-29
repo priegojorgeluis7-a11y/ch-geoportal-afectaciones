@@ -15,9 +15,18 @@ const btnClearFilters = document.getElementById("btn-clear-filters");
 const btnFit = document.getElementById("btn-fit");
 const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
+const editModeToggle = document.getElementById("edit-mode-toggle");
+const afectacionSelect = document.getElementById("afectacion-select");
+const gifUrlInput = document.getElementById("gif-url");
+const btnSaveGif = document.getElementById("btn-save-gif");
+const btnRemoveGif = document.getElementById("btn-remove-gif");
 const videoModal = document.getElementById("video-modal");
 const videoModalClose = document.getElementById("video-modal-close");
 const viaductoVideo = document.getElementById("viaducto-video");
+const gifModal = document.getElementById("gif-modal");
+const gifModalClose = document.getElementById("gif-modal-close");
+const afectacionGif = document.getElementById("afectacion-gif");
+const gifModalTitle = document.getElementById("gif-modal-title");
 
 // Toggle panel en móvil
 if (btnPanelToggle && filterPanel) {
@@ -128,6 +137,193 @@ if (videoModal && videoModalClose) {
   });
 }
 
+const GIF_LINKS_STORAGE_KEY = "afectaciones-gif-links-v1";
+
+let editModeEnabled = false;
+let selectedAfectacionKeyForEdit = "";
+let gifLinksByAfectacion = {};
+const afectacionCatalog = new Map();
+
+function buildAfectacionKey(props) {
+  const cveGeo = String(props.cve_geo || "").trim();
+  if (cveGeo) return `cve:${cveGeo.toLowerCase()}`;
+
+  const nomMun = String(props.nom_mun || "").trim().toLowerCase();
+  const clasifica = String(props.Clasifica || "").trim().toLowerCase();
+  const tramo = String(props.tramo || "").trim().toLowerCase();
+  return `combo:${nomMun}|${clasifica}|${tramo}`;
+}
+
+function buildAfectacionLabel(props) {
+  const cveGeo = String(props.cve_geo || "").trim() || "sin clave";
+  const nomMun = String(props.nom_mun || "Sin municipio").trim();
+  const clasifica = String(props.Clasifica || "Sin clasificacion").trim();
+  return `${cveGeo} | ${nomMun} | ${clasifica}`;
+}
+
+function loadGifLinksFromStorage() {
+  try {
+    const raw = localStorage.getItem(GIF_LINKS_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      gifLinksByAfectacion = parsed;
+    }
+  } catch (_err) {
+    gifLinksByAfectacion = {};
+  }
+}
+
+function persistGifLinks() {
+  localStorage.setItem(GIF_LINKS_STORAGE_KEY, JSON.stringify(gifLinksByAfectacion));
+}
+
+function refreshEditorSelect() {
+  if (!afectacionSelect) return;
+
+  const entries = Array.from(afectacionCatalog.entries()).sort((a, b) =>
+    a[1].label.localeCompare(b[1].label, "es")
+  );
+
+  const options = ['<option value="">Seleccionar afectacion...</option>'];
+  for (const [key, item] of entries) {
+    options.push(`<option value="${escapeHtml(key)}">${escapeHtml(item.label)}</option>`);
+  }
+
+  afectacionSelect.innerHTML = options.join("");
+
+  if (selectedAfectacionKeyForEdit) {
+    afectacionSelect.value = selectedAfectacionKeyForEdit;
+  }
+}
+
+function syncEditorInputForSelection() {
+  if (!gifUrlInput || !afectacionSelect) return;
+
+  selectedAfectacionKeyForEdit = afectacionSelect.value || "";
+  const existing = gifLinksByAfectacion[selectedAfectacionKeyForEdit] || "";
+  gifUrlInput.value = existing;
+}
+
+function openGifModal(url, props) {
+  if (!gifModal || !afectacionGif) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  afectacionGif.src = url;
+  if (gifModalTitle) {
+    gifModalTitle.textContent = `GIF - ${props.nom_mun || "Afectacion"}`;
+  }
+  gifModal.classList.add("open");
+  gifModal.setAttribute("aria-hidden", "false");
+}
+
+function closeGifModal() {
+  if (!gifModal || !afectacionGif) return;
+
+  gifModal.classList.remove("open");
+  gifModal.setAttribute("aria-hidden", "true");
+  afectacionGif.removeAttribute("src");
+}
+
+function openPopupForLayer(layer, props) {
+  layer.bindPopup(toPopupRows(props), { maxWidth: 360 });
+  layer.openPopup();
+}
+
+function handleAfectacionLayerClick(layer, props) {
+  const key = buildAfectacionKey(props);
+
+  if (editModeEnabled) {
+    selectedAfectacionKeyForEdit = key;
+    if (afectacionSelect) afectacionSelect.value = key;
+    if (gifUrlInput) gifUrlInput.value = gifLinksByAfectacion[key] || "";
+    openPopupForLayer(layer, props);
+    return;
+  }
+
+  const gifUrl = gifLinksByAfectacion[key];
+  if (gifUrl) {
+    closeViaductoVideo();
+    openGifModal(gifUrl, props);
+    return;
+  }
+
+  openPopupForLayer(layer, props);
+}
+
+function attachAfectacionLayerEvents(layer, props) {
+  layer.on("click", () => {
+    handleAfectacionLayerClick(layer, props);
+  });
+}
+
+function setupGifEditorEvents() {
+  if (!editModeToggle || !afectacionSelect || !gifUrlInput || !btnSaveGif || !btnRemoveGif) return;
+
+  editModeToggle.addEventListener("change", () => {
+    editModeEnabled = editModeToggle.checked;
+    setStatus(
+      editModeEnabled
+        ? "Modo edicion activo: selecciona una afectacion y asigna su GIF."
+        : "Modo vista activo: al hacer clic se abrira el GIF asignado."
+    );
+  });
+
+  afectacionSelect.addEventListener("change", () => {
+    syncEditorInputForSelection();
+  });
+
+  btnSaveGif.addEventListener("click", () => {
+    const key = afectacionSelect.value || "";
+    const gifUrl = String(gifUrlInput.value || "").trim();
+
+    if (!key) {
+      setStatus("Selecciona una afectacion antes de guardar el GIF.");
+      return;
+    }
+
+    if (!gifUrl) {
+      setStatus("Ingresa una URL de GIF para guardar.");
+      return;
+    }
+
+    gifLinksByAfectacion[key] = gifUrl;
+    persistGifLinks();
+    setStatus("GIF guardado para la afectacion seleccionada.");
+  });
+
+  btnRemoveGif.addEventListener("click", () => {
+    const key = afectacionSelect.value || "";
+    if (!key) {
+      setStatus("Selecciona una afectacion para quitar su GIF.");
+      return;
+    }
+
+    delete gifLinksByAfectacion[key];
+    persistGifLinks();
+    gifUrlInput.value = "";
+    setStatus("GIF eliminado de la afectacion seleccionada.");
+  });
+}
+
+if (gifModal && gifModalClose) {
+  gifModalClose.addEventListener("click", closeGifModal);
+  gifModal.addEventListener("click", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLElement && target.dataset.closeGif === "true") {
+      closeGifModal();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && gifModal.classList.contains("open")) {
+      closeGifModal();
+    }
+  });
+}
+
 function addViaductoMarker() {
   const viaductoIcon = L.divIcon({
     className: "viaducto-marker-wrap",
@@ -177,6 +373,9 @@ let municipioSearchTerm = "";
 let allMunicipioCounts = {};
 const CLUSTER_THRESHOLD = 140;
 let lastFilteredFeatures = [];
+
+loadGifLinksFromStorage();
+setupGifEditorEvents();
 
 function stopPointAnimation() {
   if (pointAnimationFrameId) {
@@ -498,7 +697,7 @@ function renderCurrentLayer(filteredFeatures) {
           pane: "afectacionesPane",
           icon,
         });
-        marker.bindPopup(toPopupRows(props), { maxWidth: 360 });
+        attachAfectacionLayerEvents(marker, props);
         clusterGroup.addLayer(marker);
         continue;
       }
@@ -515,7 +714,7 @@ function renderCurrentLayer(filteredFeatures) {
           };
         },
         onEachFeature: (_item, layer) => {
-          layer.bindPopup(toPopupRows(props), { maxWidth: 360 });
+          attachAfectacionLayerEvents(layer, props);
         },
       });
       nonPointGroup.addLayer(shape);
@@ -555,7 +754,7 @@ function renderCurrentLayer(filteredFeatures) {
         },
         onEachFeature: (feature, layer) => {
           const props = feature.properties || {};
-          layer.bindPopup(toPopupRows(props), { maxWidth: 360 });
+          attachAfectacionLayerEvents(layer, props);
         },
       }
     ).addTo(map);
@@ -714,6 +913,17 @@ async function loadKmzLayer() {
       type: "FeatureCollection",
       features: validFeatures,
     };
+
+    afectacionCatalog.clear();
+    for (const feature of sourceFeatureCollection.features) {
+      const props = feature.properties || {};
+      const key = buildAfectacionKey(props);
+      if (afectacionCatalog.has(key)) continue;
+      afectacionCatalog.set(key, {
+        label: buildAfectacionLabel(props),
+      });
+    }
+    refreshEditorSelect();
 
     allMunicipioCounts = countByField(sourceFeatureCollection.features, "nom_mun");
 

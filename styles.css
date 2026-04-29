@@ -258,6 +258,33 @@ button:disabled {
   gap: 0.42rem;
 }
 
+.editor-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+}
+
+.mode-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.editor-actions button {
+  flex: 1;
+}
+
 .viaducto-marker-wrap {
   background: transparent;
   border: 0;
@@ -338,6 +365,19 @@ button:disabled {
 
 .video-modal-body {
   background: #0a1d27;
+}
+
+.gif-modal-body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 220px;
+}
+
+#afectacion-gif {
+  max-width: 100%;
+  max-height: min(74vh, 540px);
+  object-fit: contain;
 }
 
 #viaducto-video {
