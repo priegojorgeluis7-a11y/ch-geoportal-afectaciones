@@ -631,9 +631,20 @@ function setupAfectacionEditorEvents() {
 }
 
 function setupPinEditorEvents() {
-  if (!pinAfectacionesSelect || !pinTitleInput || !pinDescriptionInput || !gifUrlInput || !btnPlaceGifPin) {
+  if (!pinAfectacionesSelect || !pinTitleInput || !pinDescriptionInput || !gifUrlInput || !btnPlaceGifPin || !btnPinSelectMode) {
     return;
   }
+  // Activar/desactivar modo selección en mapa
+  btnPinSelectMode.addEventListener("click", () => {
+    pinSelectionMode = !pinSelectionMode;
+    updatePinSelectionUi();
+    if (!pinSelectionMode) {
+      clearPinSelection();
+      flashEditorFeedback("Modo selección desactivado.", "warn");
+    } else {
+      flashEditorFeedback("Haz clic en los puntos del mapa para seleccionar/deseleccionar.", "ok");
+    }
+  });
 
   btnPlaceGifPin.addEventListener("click", () => {
     const gifUrl = String(gifUrlInput.value || "").trim();
