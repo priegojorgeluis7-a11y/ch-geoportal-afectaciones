@@ -15,6 +15,9 @@ const btnClearFilters = document.getElementById("btn-clear-filters");
 const btnFit = document.getElementById("btn-fit");
 const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
+const videoModal = document.getElementById("video-modal");
+const videoModalClose = document.getElementById("video-modal-close");
+const viaductoVideo = document.getElementById("viaducto-video");
 
 // Toggle panel en móvil
 if (btnPanelToggle && filterPanel) {
@@ -86,7 +89,43 @@ map.addControl(new NorthControl());
 function openViaductoVideo() {
   const isWebContext = window.location.protocol === "http:" || window.location.protocol === "https:";
   const videoUrl = isWebContext ? VIADUCTO_VIDEO_URL_WEB : VIADUCTO_VIDEO_URL_LOCAL;
-  window.open(videoUrl, "_blank", "noopener,noreferrer");
+
+  if (!videoModal || !viaductoVideo) {
+    window.open(videoUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  viaductoVideo.src = videoUrl;
+  videoModal.classList.add("open");
+  videoModal.setAttribute("aria-hidden", "false");
+  viaductoVideo.play().catch(() => {});
+}
+
+function closeViaductoVideo() {
+  if (!videoModal || !viaductoVideo) return;
+
+  videoModal.classList.remove("open");
+  videoModal.setAttribute("aria-hidden", "true");
+  viaductoVideo.pause();
+  viaductoVideo.removeAttribute("src");
+  viaductoVideo.load();
+}
+
+if (videoModal && videoModalClose) {
+  videoModalClose.addEventListener("click", closeViaductoVideo);
+
+  videoModal.addEventListener("click", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLElement && target.dataset.closeVideo === "true") {
+      closeViaductoVideo();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && videoModal.classList.contains("open")) {
+      closeViaductoVideo();
+    }
+  });
 }
 
 function addViaductoMarker() {

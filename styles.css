@@ -290,6 +290,77 @@ button:disabled {
   padding: 3px 8px;
 }
 
+.video-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.video-modal.open {
+  display: flex;
+}
+
+.video-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 20, 28, 0.62);
+  backdrop-filter: blur(2px);
+}
+
+.video-modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(960px, 94vw);
+  max-height: 92vh;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: #f4f9fa;
+  box-shadow: 0 20px 48px rgba(7, 32, 45, 0.38);
+}
+
+.video-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid rgba(11, 56, 66, 0.14);
+}
+
+.video-modal-header h2 {
+  margin: 0;
+}
+
+.video-modal-body {
+  background: #0a1d27;
+}
+
+#viaducto-video {
+  display: block;
+  width: 100%;
+  height: min(74vh, 540px);
+  background: #0a1d27;
+}
+
+@media (max-width: 720px) {
+  .video-modal {
+    padding: 0.5rem;
+  }
+
+  .video-modal-card {
+    width: 100%;
+  }
+
+  #viaducto-video {
+    height: 48vh;
+  }
+}
+
 .legend-list li {
   display: flex;
   align-items: center;
