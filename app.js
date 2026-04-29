@@ -339,11 +339,25 @@ function updateSelectedAfectacionLabel() {
 function updatePinSelectionUi() {
   if (pinSelectedCount) {
     pinSelectedCount.textContent = `Afectaciones seleccionadas para pin: ${selectedAfectacionesForPin.size}`;
+    pinSelectedCount.classList.remove("pulse");
+    void pinSelectedCount.offsetWidth;
+    pinSelectedCount.classList.add("pulse");
+    setTimeout(() => pinSelectedCount.classList.remove("pulse"), 700);
   }
 
   if (btnPinSelectMode) {
     btnPinSelectMode.classList.toggle("active", pinSelectionMode);
     btnPinSelectMode.textContent = pinSelectionMode ? "Seleccion en mapa: activa" : "Seleccionar en mapa";
+  }
+}
+
+function flashEditorFeedback(msg, tone = "ok") {
+  showEditorFeedback(msg, tone);
+  if (editorFeedback) {
+    editorFeedback.classList.remove("flash");
+    void editorFeedback.offsetWidth;
+    editorFeedback.classList.add("flash");
+    setTimeout(() => editorFeedback.classList.remove("flash"), 800);
   }
 }
 
@@ -374,7 +388,7 @@ function buildPointIcon(clasifica, isSelected = false) {
 
   return L.divIcon({
     className: "",
-    html: `<div class="map-point${selectedClass}" style="--point-fill:${classStyle.fill};--point-stroke:${classStyle.stroke}"></div>`,
+    html: `<div class=\"map-point${selectedClass}\" style=\"--point-fill:${classStyle.fill};--point-stroke:${classStyle.stroke}\" title=\"Haz clic para seleccionar/deseleccionar para pin GIF\"></div>`,
     iconSize: [13, 13],
     iconAnchor: [6.5, 6.5],
   });
@@ -535,13 +549,25 @@ function handleAfectacionLayerClick(layer, props, event) {
     if (placePendingPinAtLatLng(latlng)) return;
   }
 
+  // Solo permitir selección si está en modo selección
   if (pinSelectionMode) {
     toggleAfectacionSelectionForPin(afectKey);
     renderCurrentLayer(lastFilteredFeatures, { skipFit: true });
     setStatus(`Seleccion de pin actualizada (${selectedAfectacionesForPin.size} afectaciones).`);
+    // Animación de pulso visual en el punto
+    if (layer && layer._icon) {
+      layer._icon.classList.remove("map-point-pulse");
+      void layer._icon.offsetWidth;
+      layer._icon.classList.add("map-point-pulse");
+      setTimeout(() => layer._icon.classList.remove("map-point-pulse"), 600);
+    }
+    // Feedback visual inmediato
+    flashEditorFeedback(isAfectacionSelectedForPin(afectKey) ? "Afectación seleccionada para pin." : "Afectación deseleccionada.", "ok");
     return;
   }
 
+  // Si no está en modo selección, advertir
+  flashEditorFeedback("Activa 'Seleccionar en mapa' para vincular afectaciones al pin.", "warn");
   openPopupForLayer(layer, props);
 }
 

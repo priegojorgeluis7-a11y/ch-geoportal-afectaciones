@@ -527,6 +527,40 @@ button:disabled {
 
 .map-point-selected {
   box-shadow: 0 0 0 2px rgba(10, 29, 39, 0.95), 0 0 0 5px rgba(34, 211, 238, 0.45);
+  animation: pointSelectPulse 0.5s cubic-bezier(.4,2,.6,1) 1;
+}
+
+.map-point-pulse {
+  animation: pointSelectPulse 0.5s cubic-bezier(.4,2,.6,1) 1;
+}
+
+@keyframes pointSelectPulse {
+  0% { box-shadow: 0 0 0 2px #0c5f73, 0 0 0 5px #22d3ee; }
+  60% { box-shadow: 0 0 0 8px #22d3ee88, 0 0 0 16px #22d3ee33; }
+  100% { box-shadow: 0 0 0 2px #0c5f73, 0 0 0 5px #22d3ee; }
+}
+
+#pin-selected-count.pulse {
+  animation: countPulse 0.6s cubic-bezier(.4,2,.6,1) 1;
+  color: #0c5f73;
+  font-weight: bold;
+}
+
+@keyframes countPulse {
+  0% { color: #22d3ee; transform: scale(1.1); }
+  60% { color: #0c5f73; transform: scale(1.25); }
+  100% { color: #0c5f73; transform: scale(1); }
+}
+
+.editor-feedback.flash {
+  animation: feedbackFlash 0.7s cubic-bezier(.4,2,.6,1) 1;
+}
+
+@keyframes feedbackFlash {
+  0% { background: #22d3ee33; }
+  60% { background: #22d3ee99; }
+  100% { background: transparent; }
+}
 }
 
 .marker-cluster > div {
