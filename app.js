@@ -1,6 +1,9 @@
 const KMZ_PATH = "data/afectaciones_ba_170426.kmz";
 const TRONCAL_KMZ_PATH = "data/TRONCAL.kmz";
 const MUNICIPIOS_GEOJSON_PATH = "data/municipios_jalisco.geojson";
+const VIADUCTO_VIDEO_URL_LOCAL = "file:///Users/jorgeluispriegocruz/Downloads/GUADALAJARA-VIDEO-01.mp4";
+const VIADUCTO_VIDEO_URL_WEB = "data/GUADALAJARA-VIDEO-01-web.mp4";
+const VIADUCTO_COORDS = [20.6525, -103.347306];
 
 const statusText = document.getElementById("status-text");
 const metricTotal = document.getElementById("metric-total");
@@ -31,6 +34,8 @@ map.createPane("afectacionesPane");
 map.getPane("afectacionesPane").style.zIndex = 420;
 map.createPane("boundaryPane");
 map.getPane("boundaryPane").style.zIndex = 430;
+map.createPane("poiPane");
+map.getPane("poiPane").style.zIndex = 500;
 
 const svgRenderer = L.svg({ padding: 0.5 });
 
@@ -77,6 +82,69 @@ const NorthControl = L.Control.extend({
 });
 
 map.addControl(new NorthControl());
+
+function openViaductoVideo() {
+  const isWebContext = window.location.protocol === "http:" || window.location.protocol === "https:";
+  const videoUrl = isWebContext ? VIADUCTO_VIDEO_URL_WEB : VIADUCTO_VIDEO_URL_LOCAL;
+  window.open(videoUrl, "_blank", "noopener,noreferrer");
+}
+
+const ViaductoQuickControl = L.Control.extend({
+  options: { position: "topright" },
+  onAdd() {
+    const container = L.DomUtil.create("div", "leaflet-bar video-debug-control");
+    const button = L.DomUtil.create("button", "video-debug-btn", container);
+    button.type = "button";
+    button.setAttribute("aria-label", "Ir al viaducto y abrir video");
+    button.textContent = "Probar Viaducto";
+
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.on(button, "click", (event) => {
+      L.DomEvent.stop(event);
+      map.setView(VIADUCTO_COORDS, 16, { animate: true });
+      openViaductoVideo();
+    });
+
+    return container;
+  },
+});
+
+function addViaductoMarker() {
+  const viaductoIcon = L.divIcon({
+    className: "viaducto-marker-wrap",
+    html: `
+      <div class="viaducto-marker" role="img" aria-label="Viaducto">
+        <svg class="viaducto-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M3 15h18v2H3zm1-1h2v-3H4zm4 0h2v-5H8zm4 0h2V9h-2zm4 0h2v-4h-2zM3 8c2.8-2 6-3 9-3s6.2 1 9 3v2c-2.8-2-6-3-9-3s-6.2 1-9 3z" />
+        </svg>
+      </div>
+    `,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+  });
+
+  const marker = L.marker(VIADUCTO_COORDS, {
+    pane: "poiPane",
+    icon: viaductoIcon,
+    keyboard: true,
+    title: "Viaducto",
+  }).addTo(map);
+
+  marker.bindPopup(
+    '<strong>Viaducto</strong><br><small>Haz clic en el icono para abrir video.</small>'
+  );
+
+  marker.bindTooltip("Viaducto", {
+    permanent: true,
+    direction: "top",
+    offset: [0, -18],
+    className: "viaducto-label",
+  });
+
+  marker.on("click", () => {
+    openViaductoVideo();
+  });
+}
 
 let currentLayer = null;
 let troncalLayer = null;
@@ -687,6 +755,8 @@ btnFit.addEventListener("click", () => {
 });
 
 setupFilterEvents();
+map.addControl(new ViaductoQuickControl());
+addViaductoMarker();
 loadMunicipioBoundariesDataset();
 loadTroncalLayer();
 loadKmzLayer();

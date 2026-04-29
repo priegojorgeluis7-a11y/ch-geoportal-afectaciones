@@ -258,6 +258,62 @@ button:disabled {
   gap: 0.42rem;
 }
 
+.viaducto-marker-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.viaducto-marker {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #0c5f73, #2b99b2);
+  border: 2px solid #f4f7f8;
+  box-shadow: 0 6px 16px rgba(8, 48, 58, 0.35);
+}
+
+.viaducto-glyph {
+  width: 18px;
+  height: 18px;
+  fill: #ffffff;
+}
+
+.viaducto-label {
+  background: rgba(12, 95, 115, 0.94);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 10px;
+  box-shadow: 0 6px 14px rgba(8, 48, 58, 0.28);
+  font-weight: 700;
+  padding: 3px 8px;
+}
+
+.video-debug-control {
+  border-radius: 999px;
+  border: 0;
+  box-shadow: 0 8px 18px rgba(8, 48, 58, 0.24);
+  overflow: hidden;
+}
+
+.video-debug-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.5rem 0.86rem;
+  background: linear-gradient(135deg, #0c5f73, #2b99b2);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.video-debug-btn:hover {
+  transform: none;
+  box-shadow: none;
+  filter: brightness(1.04);
+}
+
 .legend-list li {
   display: flex;
   align-items: center;
