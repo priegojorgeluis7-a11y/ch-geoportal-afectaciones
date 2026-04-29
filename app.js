@@ -153,6 +153,9 @@ let afectacionMetaByKey = {};
 const afectacionCatalog = new Map();
 
 function buildAfectacionKey(props) {
+  const stableKey = String(props._afect_key || "").trim();
+  if (stableKey) return `key:${stableKey}`;
+
   const uid = String(props._afect_uid || "").trim();
   if (uid) return `uid:${uid}`;
 
@@ -171,6 +174,32 @@ function buildAfectacionLabel(props, manualNumber = "") {
   const nomMun = String(props.nom_mun || "Sin municipio").trim();
   const clasifica = String(props.Clasifica || "Sin clasificacion").trim();
   return `#${afectId} | ${cveGeo} | ${nomMun} | ${clasifica}`;
+}
+
+function buildStableFeatureKey(feature, fallbackIndex) {
+  const props = feature.properties || {};
+  const geometry = feature.geometry || {};
+  const geometryType = String(geometry.type || "").toLowerCase();
+  const geometryHead = JSON.stringify(geometry.coordinates || []).slice(0, 220);
+
+  const seed = [
+    props.cve_geo || "",
+    props.tramo || "",
+    props.nom_mun || "",
+    props.Clasifica || "",
+    geometryType,
+    geometryHead,
+    String(fallbackIndex),
+  ]
+    .map((part) => String(part).trim().toLowerCase())
+    .join("|");
+
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+
+  return `af${hash.toString(16)}`;
 }
 
 function loadAfectacionMetaFromStorage() {
@@ -1057,6 +1086,7 @@ async function loadKmzLayer() {
       properties: {
         ...(feature.properties || {}),
         _afect_uid: String(index + 1),
+        _afect_key: buildStableFeatureKey(feature, index + 1),
       },
     }));
 
