@@ -89,26 +89,6 @@ function openViaductoVideo() {
   window.open(videoUrl, "_blank", "noopener,noreferrer");
 }
 
-const ViaductoQuickControl = L.Control.extend({
-  options: { position: "topright" },
-  onAdd() {
-    const container = L.DomUtil.create("div", "leaflet-bar video-debug-control");
-    const button = L.DomUtil.create("button", "video-debug-btn", container);
-    button.type = "button";
-    button.setAttribute("aria-label", "Ir al viaducto y abrir video");
-    button.textContent = "Probar Viaducto";
-
-    L.DomEvent.disableClickPropagation(container);
-    L.DomEvent.on(button, "click", (event) => {
-      L.DomEvent.stop(event);
-      map.setView(VIADUCTO_COORDS, 16, { animate: true });
-      openViaductoVideo();
-    });
-
-    return container;
-  },
-});
-
 function addViaductoMarker() {
   const viaductoIcon = L.divIcon({
     className: "viaducto-marker-wrap",
@@ -755,7 +735,6 @@ btnFit.addEventListener("click", () => {
 });
 
 setupFilterEvents();
-map.addControl(new ViaductoQuickControl());
 addViaductoMarker();
 loadMunicipioBoundariesDataset();
 loadTroncalLayer();
