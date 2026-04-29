@@ -1,5 +1,5 @@
 const KMZ_PATH = "data/afectaciones_ba_170426.kmz";
-const TRONCAL_KMZ_PATH = "data/TRONCAL.kmz";
+const TRONCAL_KMZ_PATH = "data/TRONCAL.kmz?v=20260429d";
 const MUNICIPIOS_GEOJSON_PATH = "data/municipios_jalisco.geojson";
 const VIADUCTO_VIDEO_URL_LOCAL = "file:///Users/jorgeluispriegocruz/Downloads/GUADALAJARA-VIDEO-01.mp4";
 const VIADUCTO_VIDEO_URL_WEB = "data/GUADALAJARA-VIDEO-01-web.mp4";
