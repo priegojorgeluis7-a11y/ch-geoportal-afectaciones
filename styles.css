@@ -192,6 +192,11 @@ button:disabled {
   outline-offset: 1px;
 }
 
+.text-area {
+  min-height: 88px;
+  resize: vertical;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

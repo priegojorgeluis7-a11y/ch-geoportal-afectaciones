@@ -17,6 +17,7 @@ const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
 const editModeToggle = document.getElementById("edit-mode-toggle");
 const afectacionSelect = document.getElementById("afectacion-select");
+const afectacionDescriptionInput = document.getElementById("afectacion-description");
 const gifUrlInput = document.getElementById("gif-url");
 const btnSaveGif = document.getElementById("btn-save-gif");
 const btnRemoveGif = document.getElementById("btn-remove-gif");
@@ -137,14 +138,18 @@ if (videoModal && videoModalClose) {
   });
 }
 
-const GIF_LINKS_STORAGE_KEY = "afectaciones-gif-links-v1";
+const AFFECT_META_STORAGE_KEY = "afectaciones-meta-v2";
+const GIF_LINKS_LEGACY_STORAGE_KEY = "afectaciones-gif-links-v1";
 
 let editModeEnabled = false;
 let selectedAfectacionKeyForEdit = "";
-let gifLinksByAfectacion = {};
+let afectacionMetaByKey = {};
 const afectacionCatalog = new Map();
 
 function buildAfectacionKey(props) {
+  const afectId = String(props.afect_id || "").trim();
+  if (afectId) return `id:${afectId}`;
+
   const cveGeo = String(props.cve_geo || "").trim();
   if (cveGeo) return `cve:${cveGeo.toLowerCase()}`;
 
@@ -155,27 +160,62 @@ function buildAfectacionKey(props) {
 }
 
 function buildAfectacionLabel(props) {
+  const afectId = String(props.afect_id || "?").trim();
   const cveGeo = String(props.cve_geo || "").trim() || "sin clave";
   const nomMun = String(props.nom_mun || "Sin municipio").trim();
   const clasifica = String(props.Clasifica || "Sin clasificacion").trim();
-  return `${cveGeo} | ${nomMun} | ${clasifica}`;
+  return `#${afectId} | ${cveGeo} | ${nomMun} | ${clasifica}`;
 }
 
-function loadGifLinksFromStorage() {
+function loadAfectacionMetaFromStorage() {
   try {
-    const raw = localStorage.getItem(GIF_LINKS_STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object") {
-      gifLinksByAfectacion = parsed;
+    const rawMeta = localStorage.getItem(AFFECT_META_STORAGE_KEY);
+    if (rawMeta) {
+      const parsed = JSON.parse(rawMeta);
+      if (parsed && typeof parsed === "object") {
+        afectacionMetaByKey = parsed;
+        return;
+      }
+    }
+
+    // Migracion desde el formato anterior (solo GIF por clave)
+    const rawLegacy = localStorage.getItem(GIF_LINKS_LEGACY_STORAGE_KEY);
+    if (rawLegacy) {
+      const parsedLegacy = JSON.parse(rawLegacy);
+      if (parsedLegacy && typeof parsedLegacy === "object") {
+        for (const [key, value] of Object.entries(parsedLegacy)) {
+          if (!value) continue;
+          afectacionMetaByKey[key] = {
+            gifUrl: String(value),
+            description: "",
+          };
+        }
+      }
     }
   } catch (_err) {
-    gifLinksByAfectacion = {};
+    afectacionMetaByKey = {};
   }
 }
 
-function persistGifLinks() {
-  localStorage.setItem(GIF_LINKS_STORAGE_KEY, JSON.stringify(gifLinksByAfectacion));
+function persistAfectacionMeta() {
+  localStorage.setItem(AFFECT_META_STORAGE_KEY, JSON.stringify(afectacionMetaByKey));
+}
+
+function getAfectacionMeta(key) {
+  const meta = afectacionMetaByKey[key] || {};
+  return {
+    gifUrl: String(meta.gifUrl || "").trim(),
+    description: String(meta.description || "").trim(),
+  };
+}
+
+function getPropsWithMeta(props) {
+  const key = buildAfectacionKey(props);
+  const meta = getAfectacionMeta(key);
+  return {
+    ...props,
+    user_description: meta.description,
+  };
 }
 
 function refreshEditorSelect() {
@@ -198,11 +238,12 @@ function refreshEditorSelect() {
 }
 
 function syncEditorInputForSelection() {
-  if (!gifUrlInput || !afectacionSelect) return;
+  if (!gifUrlInput || !afectacionSelect || !afectacionDescriptionInput) return;
 
   selectedAfectacionKeyForEdit = afectacionSelect.value || "";
-  const existing = gifLinksByAfectacion[selectedAfectacionKeyForEdit] || "";
-  gifUrlInput.value = existing;
+  const meta = getAfectacionMeta(selectedAfectacionKeyForEdit);
+  gifUrlInput.value = meta.gifUrl;
+  afectacionDescriptionInput.value = meta.description;
 }
 
 function openGifModal(url, props) {
@@ -228,7 +269,8 @@ function closeGifModal() {
 }
 
 function openPopupForLayer(layer, props) {
-  layer.bindPopup(toPopupRows(props), { maxWidth: 360 });
+  const enrichedProps = getPropsWithMeta(props);
+  layer.bindPopup(toPopupRows(enrichedProps), { maxWidth: 360 });
   layer.openPopup();
 }
 
@@ -238,15 +280,17 @@ function handleAfectacionLayerClick(layer, props) {
   if (editModeEnabled) {
     selectedAfectacionKeyForEdit = key;
     if (afectacionSelect) afectacionSelect.value = key;
-    if (gifUrlInput) gifUrlInput.value = gifLinksByAfectacion[key] || "";
+    const meta = getAfectacionMeta(key);
+    if (gifUrlInput) gifUrlInput.value = meta.gifUrl;
+    if (afectacionDescriptionInput) afectacionDescriptionInput.value = meta.description;
     openPopupForLayer(layer, props);
     return;
   }
 
-  const gifUrl = gifLinksByAfectacion[key];
-  if (gifUrl) {
+  const meta = getAfectacionMeta(key);
+  if (meta.gifUrl) {
     closeViaductoVideo();
-    openGifModal(gifUrl, props);
+    openGifModal(meta.gifUrl, props);
     return;
   }
 
@@ -260,7 +304,15 @@ function attachAfectacionLayerEvents(layer, props) {
 }
 
 function setupGifEditorEvents() {
-  if (!editModeToggle || !afectacionSelect || !gifUrlInput || !btnSaveGif || !btnRemoveGif) return;
+  if (
+    !editModeToggle ||
+    !afectacionSelect ||
+    !gifUrlInput ||
+    !afectacionDescriptionInput ||
+    !btnSaveGif ||
+    !btnRemoveGif
+  )
+    return;
 
   editModeToggle.addEventListener("change", () => {
     editModeEnabled = editModeToggle.checked;
@@ -278,33 +330,38 @@ function setupGifEditorEvents() {
   btnSaveGif.addEventListener("click", () => {
     const key = afectacionSelect.value || "";
     const gifUrl = String(gifUrlInput.value || "").trim();
+    const description = String(afectacionDescriptionInput.value || "").trim();
 
     if (!key) {
-      setStatus("Selecciona una afectacion antes de guardar el GIF.");
+      setStatus("Selecciona una afectacion antes de guardar la ficha.");
       return;
     }
 
-    if (!gifUrl) {
-      setStatus("Ingresa una URL de GIF para guardar.");
+    if (!gifUrl && !description) {
+      setStatus("Captura descripcion y/o GIF para guardar la ficha.");
       return;
     }
 
-    gifLinksByAfectacion[key] = gifUrl;
-    persistGifLinks();
-    setStatus("GIF guardado para la afectacion seleccionada.");
+    afectacionMetaByKey[key] = {
+      gifUrl,
+      description,
+    };
+    persistAfectacionMeta();
+    setStatus("Ficha guardada para la afectacion seleccionada.");
   });
 
   btnRemoveGif.addEventListener("click", () => {
     const key = afectacionSelect.value || "";
     if (!key) {
-      setStatus("Selecciona una afectacion para quitar su GIF.");
+      setStatus("Selecciona una afectacion para limpiar su ficha.");
       return;
     }
 
-    delete gifLinksByAfectacion[key];
-    persistGifLinks();
+    delete afectacionMetaByKey[key];
+    persistAfectacionMeta();
     gifUrlInput.value = "";
-    setStatus("GIF eliminado de la afectacion seleccionada.");
+    afectacionDescriptionInput.value = "";
+    setStatus("Ficha limpiada de la afectacion seleccionada.");
   });
 }
 
@@ -374,7 +431,7 @@ let allMunicipioCounts = {};
 const CLUSTER_THRESHOLD = 140;
 let lastFilteredFeatures = [];
 
-loadGifLinksFromStorage();
+loadAfectacionMetaFromStorage();
 setupGifEditorEvents();
 
 function stopPointAnimation() {
@@ -456,11 +513,13 @@ function radiusByPondera(value) {
 
 function toPopupRows(props) {
   const fields = [
+    ["Afectacion", props.afect_id ? `#${props.afect_id}` : ""],
     ["Tramo", props.tramo],
     ["Estado", props.nom_ent],
     ["Municipio", props.nom_mun],
     ["Clasificacion", props.Clasifica],
     ["Clave geo", props.cve_geo],
+    ["Descripcion", props.user_description],
   ];
 
   const rows = fields
@@ -908,10 +967,17 @@ async function loadKmzLayer() {
     const featureCollection = await parseKmzToGeoJson(KMZ_PATH);
     const normalizedFeatures = (featureCollection.features || []).map(normalizeFeature);
     const validFeatures = normalizedFeatures.filter(isValidAfectacion);
+    const enumeratedFeatures = validFeatures.map((feature, index) => ({
+      ...feature,
+      properties: {
+        ...(feature.properties || {}),
+        afect_id: String(index + 1),
+      },
+    }));
 
     sourceFeatureCollection = {
       type: "FeatureCollection",
-      features: validFeatures,
+      features: enumeratedFeatures,
     };
 
     afectacionCatalog.clear();

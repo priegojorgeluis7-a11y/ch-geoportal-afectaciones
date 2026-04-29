@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-  <link rel="stylesheet" href="styles.css?v=20260429f" />
+  <link rel="stylesheet" href="styles.css?v=20260429g" />
 </head>
 <body>
   <div class="background-shape shape-1"></div>
@@ -72,17 +72,18 @@
       </section>
 
       <section class="card editor-card">
-        <h2>Editor de GIF por afectacion</h2>
+        <h2>Editor de afectaciones</h2>
         <label class="mode-toggle" for="edit-mode-toggle">
           <input id="edit-mode-toggle" type="checkbox" />
           <span>Modo edicion</span>
         </label>
-        <p class="hint">En modo vista, el clic abre el GIF asignado. En modo edicion, selecciona una afectacion y guarda su GIF.</p>
+        <p class="hint">Cada punto tiene numero, descripcion y GIF. En modo vista, el clic abre el GIF en esta misma pagina.</p>
         <select id="afectacion-select" class="text-filter" aria-label="Seleccionar afectacion"></select>
+        <textarea id="afectacion-description" class="text-filter text-area" placeholder="Descripcion de la afectacion..."></textarea>
         <input id="gif-url" class="text-filter" type="text" placeholder="URL del GIF (https://...gif)" />
         <div class="editor-actions">
-          <button id="btn-save-gif" type="button">Guardar GIF</button>
-          <button id="btn-remove-gif" type="button">Quitar GIF</button>
+          <button id="btn-save-gif" type="button">Guardar ficha</button>
+          <button id="btn-remove-gif" type="button">Limpiar ficha</button>
         </div>
       </section>
     </aside>
@@ -122,6 +123,6 @@
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
-  <script src="app.js?v=20260429f"></script>
+  <script src="app.js?v=20260429g"></script>
 </body>
 </html>
