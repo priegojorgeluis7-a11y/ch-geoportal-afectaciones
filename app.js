@@ -22,6 +22,9 @@ const afectacionDescriptionInput = document.getElementById("afectacion-descripti
 const gifUrlInput = document.getElementById("gif-url");
 const btnSaveGif = document.getElementById("btn-save-gif");
 const btnRemoveGif = document.getElementById("btn-remove-gif");
+const btnClearAllFichas = document.getElementById("btn-clear-all-fichas");
+const editorFeedback = document.getElementById("editor-feedback");
+const editorCard = document.querySelector(".editor-card");
 const videoModal = document.getElementById("video-modal");
 const videoModalClose = document.getElementById("video-modal-close");
 const viaductoVideo = document.getElementById("viaducto-video");
@@ -211,6 +214,31 @@ function getAfectacionMeta(key) {
   };
 }
 
+function showEditorFeedback(message, tone = "ok") {
+  if (!editorFeedback) return;
+  editorFeedback.textContent = message;
+  editorFeedback.classList.remove("ok", "warn");
+  if (tone) editorFeedback.classList.add(tone);
+
+  if (editorCard && tone === "ok") {
+    editorCard.classList.remove("saved-pulse");
+    void editorCard.offsetWidth;
+    editorCard.classList.add("saved-pulse");
+  }
+}
+
+function clearAllFichas() {
+  afectacionMetaByKey = {};
+  localStorage.removeItem(AFFECT_META_STORAGE_KEY);
+  localStorage.removeItem(GIF_LINKS_LEGACY_STORAGE_KEY);
+
+  if (afectacionNumberInput) afectacionNumberInput.value = "";
+  if (gifUrlInput) gifUrlInput.value = "";
+  if (afectacionDescriptionInput) afectacionDescriptionInput.value = "";
+  refreshEditorSelect();
+  showEditorFeedback("Se borraron todas las fichas guardadas.", "warn");
+}
+
 function getPropsWithMeta(props) {
   const key = buildAfectacionKey(props);
   const meta = getAfectacionMeta(key);
@@ -337,16 +365,19 @@ function setupGifEditorEvents() {
 
     if (!key) {
       setStatus("Selecciona una afectacion antes de guardar la ficha.");
+      showEditorFeedback("Selecciona una afectacion para guardar.", "warn");
       return;
     }
 
     if (!number) {
       setStatus("Captura el numero de afectacion antes de guardar.");
+      showEditorFeedback("Falta capturar el numero de afectacion.", "warn");
       return;
     }
 
     if (!gifUrl && !description) {
       setStatus("Captura descripcion y/o GIF para guardar la ficha.");
+      showEditorFeedback("Escribe descripcion y/o GIF antes de guardar.", "warn");
       return;
     }
 
@@ -358,12 +389,14 @@ function setupGifEditorEvents() {
     persistAfectacionMeta();
     refreshEditorSelect();
     setStatus("Ficha guardada para la afectacion seleccionada.");
+    showEditorFeedback("Ficha guardada correctamente.", "ok");
   });
 
   btnRemoveGif.addEventListener("click", () => {
     const key = afectacionSelect.value || "";
     if (!key) {
       setStatus("Selecciona una afectacion para limpiar su ficha.");
+      showEditorFeedback("Selecciona una afectacion para limpiar.", "warn");
       return;
     }
 
@@ -374,7 +407,15 @@ function setupGifEditorEvents() {
     gifUrlInput.value = "";
     afectacionDescriptionInput.value = "";
     setStatus("Ficha limpiada de la afectacion seleccionada.");
+    showEditorFeedback("Ficha limpiada correctamente.", "ok");
   });
+
+  if (btnClearAllFichas) {
+    btnClearAllFichas.addEventListener("click", () => {
+      clearAllFichas();
+      setStatus("Se borraron todos los links y descripciones guardados.");
+    });
+  }
 }
 
 if (gifModal && gifModalClose) {

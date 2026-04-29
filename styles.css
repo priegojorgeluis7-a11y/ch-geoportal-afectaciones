@@ -290,6 +290,42 @@ button:disabled {
   flex: 1;
 }
 
+.editor-feedback {
+  margin: 0;
+  min-height: 1.05rem;
+  font-size: 0.82rem;
+  color: #48615a;
+}
+
+.editor-feedback.ok {
+  color: #0b6b51;
+  font-weight: 700;
+}
+
+.editor-feedback.warn {
+  color: #8b3f00;
+  font-weight: 700;
+}
+
+.btn-clear-all {
+  border-color: rgba(136, 37, 37, 0.28);
+  color: #7b1f1f;
+  background: rgba(255, 239, 239, 0.8);
+}
+
+.editor-card.saved-pulse {
+  animation: editorPulse 420ms ease;
+}
+
+@keyframes editorPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(11, 107, 81, 0.36);
+  }
+  100% {
+    box-shadow: var(--shadow);
+  }
+}
+
 .viaducto-marker-wrap {
   background: transparent;
   border: 0;
