@@ -94,7 +94,10 @@
         <input id="gif-url" class="text-filter" type="text" placeholder="URL del GIF (https://...gif)" />
         <p id="editor-feedback" class="editor-feedback" aria-live="polite"></p>
         <div class="editor-actions">
-          <button id="btn-pin-select-mode" type="button">Seleccionar en mapa</button>
+          <label class="switch-toggle" style="flex:2;align-items:center;gap:0.5rem;">
+            <input id="pin-select-switch" type="checkbox" style="accent-color:#0c5f73;" />
+            <span id="pin-select-switch-label">Seleccionar en mapa</span>
+          </label>
           <button id="btn-clear-pin-selection" type="button" class="btn-clear-all">Limpiar seleccion</button>
         </div>
         <div class="editor-actions">

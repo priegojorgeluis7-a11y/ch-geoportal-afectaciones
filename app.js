@@ -632,18 +632,33 @@ function setupAfectacionEditorEvents() {
 }
 
 function setupPinEditorEvents() {
-  if (!pinAfectacionesSelect || !pinTitleInput || !pinDescriptionInput || !gifUrlInput || !btnPlaceGifPin || !btnPinSelectMode) {
+  const pinSelectSwitch = document.getElementById("pin-select-switch");
+  const pinSelectSwitchLabel = document.getElementById("pin-select-switch-label");
+  const gifEditorCard = document.querySelector(".editor-gif-card");
+  if (!pinAfectacionesSelect || !pinTitleInput || !pinDescriptionInput || !gifUrlInput || !btnPlaceGifPin || !pinSelectSwitch || !pinSelectSwitchLabel || !gifEditorCard) {
     return;
   }
-  // Activar/desactivar modo selección en mapa
-  btnPinSelectMode.addEventListener("click", () => {
-    pinSelectionMode = !pinSelectionMode;
+  // Activar/desactivar modo selección en mapa con switch visual
+  pinSelectSwitch.addEventListener("change", () => {
+    pinSelectionMode = pinSelectSwitch.checked;
     updatePinSelectionUi();
-    if (!pinSelectionMode) {
-      clearPinSelection();
-      flashEditorFeedback("Modo selección desactivado.", "warn");
+    if (pinSelectionMode) {
+      gifEditorCard.classList.add("edit-mode");
+      pinSelectSwitchLabel.textContent = "Modo edición: selecciona en el mapa";
+      if (!document.getElementById("edit-mode-feedback")) {
+        const feedback = document.createElement("div");
+        feedback.id = "edit-mode-feedback";
+        feedback.className = "edit-mode-feedback";
+        feedback.textContent = "Modo edición activo: haz clic en los puntos del mapa para seleccionar/deseleccionar.";
+        gifEditorCard.insertBefore(feedback, gifEditorCard.firstChild);
+      }
     } else {
-      flashEditorFeedback("Haz clic en los puntos del mapa para seleccionar/deseleccionar.", "ok");
+      gifEditorCard.classList.remove("edit-mode");
+      pinSelectSwitchLabel.textContent = "Seleccionar en mapa";
+      clearPinSelection();
+      const feedback = document.getElementById("edit-mode-feedback");
+      if (feedback) feedback.remove();
+      flashEditorFeedback("Modo selección desactivado.", "warn");
     }
   });
 

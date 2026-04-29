@@ -1,3 +1,57 @@
+.switch-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  user-select: none;
+}
+.switch-toggle input[type="checkbox"] {
+  width: 2.1em;
+  height: 1.1em;
+  appearance: none;
+  background: #e2e8f0;
+  border-radius: 1em;
+  position: relative;
+  outline: none;
+  transition: background 0.2s;
+  margin-right: 0.4em;
+}
+.switch-toggle input[type="checkbox"]:checked {
+  background: linear-gradient(90deg,#0c5f73,#2b99b2);
+}
+.switch-toggle input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  left: 0.18em;
+  top: 0.13em;
+  width: 0.85em;
+  height: 0.85em;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px #0001;
+  transition: left 0.2s;
+}
+.switch-toggle input[type="checkbox"]:checked::before {
+  left: 1.05em;
+}
+.editor-gif-card.edit-mode {
+  background: linear-gradient(90deg,#e0f7fa 60%,#b2ebf2 100%);
+  box-shadow: 0 0 0 2px #0c5f7333;
+}
+.edit-mode-feedback {
+  background: #0c5f73;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 8px;
+  padding: 0.4em 0.8em;
+  margin-bottom: 0.5em;
+  text-align: center;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 8px #0c5f7322;
+}
 :root {
   --bg-a: #f5efe0;
   --bg-b: #dcefdc;
