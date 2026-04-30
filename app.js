@@ -551,11 +551,11 @@ function handleAfectacionLayerClick(layer, props, event) {
     if (placePendingPinAtLatLng(latlng)) return;
   }
 
-  // Solo permitir selección si está en modo selección
+  // Solo permitir selección si está en modo edición global
   if (pinSelectionMode) {
     toggleAfectacionSelectionForPin(afectKey);
     renderCurrentLayer(lastFilteredFeatures, { skipFit: true });
-    setStatus(`Seleccion de pin actualizada (${selectedAfectacionesForPin.size} afectaciones).`);
+    setStatus(`Selección de pin actualizada (${selectedAfectacionesForPin.size} afectaciones).`);
     // Animación de pulso visual en el punto
     if (layer && layer._icon) {
       layer._icon.classList.remove("map-point-pulse");
@@ -568,8 +568,7 @@ function handleAfectacionLayerClick(layer, props, event) {
     return;
   }
 
-  // Si no está en modo selección, advertir
-  flashEditorFeedback("Activa 'Seleccionar en mapa' para vincular afectaciones al pin.", "warn");
+  // Si no está en modo edición, solo abrir popup informativo
   openPopupForLayer(layer, props);
 }
 
@@ -688,7 +687,7 @@ function setupPinEditorEvents() {
     }
 
     if (!afectKeys.length) {
-      showEditorFeedback("Selecciona al menos una afectacion para vincular.", "warn");
+      showEditorFeedback("Selecciona al menos una afectación para vincular.", "warn");
       return;
     }
 
