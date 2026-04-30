@@ -3,23 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Identificación de Afectaciones - Geoportal</title>
-  
-  <!-- Tipografías -->
+  <!-- <script>
+    if (sessionStorage.getItem("geoportal-auth") !== "ok") {
+      window.location.replace("login.html");
+    }
+  </script> -->
+  <title>Identificación de Afectaciones</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
-  
-  <!-- CSS de Librerías -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-  
-  <!-- Tu archivo de estilos -->
   <link rel="stylesheet" href="styles.css?v=20260430r" />
 </head>
 <body>
-  <!-- Elementos decorativos de fondo -->
   <div class="background-shape shape-1"></div>
   <div class="background-shape shape-2"></div>
 
@@ -40,35 +38,31 @@
   </header>
 
   <main class="layout">
-    <!-- Botón para móviles -->
     <button class="panel-toggle" id="btn-panel-toggle" type="button" aria-expanded="false" aria-controls="filter-panel">
       <span>Filtros y leyenda</span>
       <i class="toggle-icon" aria-hidden="true">▼</i>
     </button>
 
     <aside class="panel" id="filter-panel">
-      <!-- Sección de métricas -->
       <section class="card total-card">
         <h2>Total de afectaciones</h2>
         <p id="metric-total" class="total-value">-</p>
         <p id="status-text" class="hint">Cargando capa...</p>
       </section>
 
-      <!-- Filtros por Clasificación -->
       <section class="card list-card">
         <h2>Clasificaciones (filtro)</h2>
         <p class="hint">Toca una o varias clasificaciones para filtrar.</p>
         <div id="clasifica-list" class="chips"></div>
       </section>
 
-      <!-- Filtros por Municipio -->
       <section class="card list-card">
         <h2>Municipio (filtro)</h2>
+        <p class="hint">Toca un municipio para filtrar. Vuelve a tocar para quitar.</p>
         <input id="muni-search" class="text-filter" type="text" placeholder="Buscar municipio..." />
         <div id="muni-list" class="chips"></div>
       </section>
 
-      <!-- Leyenda del mapa -->
       <section class="card legend-card">
         <h2>Leyenda</h2>
         <ul class="legend-list">
@@ -78,87 +72,77 @@
           <li><span class="legend-dot" style="--dot:#ff8c00;--dot-border:#9a4f00"></span><span>Iglesia</span></li>
           <li><span class="legend-dot" style="--dot:#ffffff;--dot-border:#111111"></span><span>Troncoconico</span></li>
           <li><span class="legend-line troncal"></span><span>Trazo troncal (KMZ)</span></li>
-          <li><span class="legend-line limite"></span><span>Límite municipal</span></li>
+          <li><span class="legend-line limite"></span><span>Limite municipal</span></li>
         </ul>
         <label class="gif-filter-toggle" style="margin-top:0.65rem;">
           <input id="toggle-gif-pins" type="checkbox" checked />
-          Ver pines GIF (Nube)
+          Ver pines GIF
         </label>
       </section>
 
-      <!-- Editor de Pines (Sincronizado con Firebase) -->
       <section class="card editor-card editor-gif-card">
-        <h2>Pines GIF (Colaborativo)</h2>
-        <p class="hint">Activa "Modo edición", selecciona puntos en el mapa y crea un pin que todos podrán ver.</p>
-        <p id="pin-selected-count" class="hint">Afectaciones seleccionadas: 0</p>
-        
-        <input id="pin-title" class="text-filter" type="text" placeholder="Título del pin (ej. Predio 45)" />
-        <textarea id="pin-description" class="text-filter text-area" placeholder="Descripción adicional..."></textarea>
-        
+        <h2>Pines GIF (uno a varios)</h2>
+        <p class="hint">Activa "Seleccionar en mapa", toca los puntos a vincular y luego coloca el pin.</p>
+        <p id="pin-selected-count" class="hint">Afectaciones seleccionadas para pin: 0</p>
+        <input id="pin-title" class="text-filter" type="text" placeholder="Titulo del pin (opcional)" />
+        <textarea id="pin-description" class="text-filter text-area" placeholder="Descripcion del pin (se mostrara en las fichas vinculadas)..."></textarea>
         <div style="margin:0.4rem 0 0.2rem;">
-          <label for="gif-upload" class="btn-upload-gif" title="Subir nuevo GIF">+ Subir GIF</label>
+          <label for="gif-upload" class="btn-upload-gif" title="Subir nuevo GIF desde tu dispositivo">+ Subir GIF</label>
           <input id="gif-upload" type="file" accept=".gif,image/gif" style="display:none;" />
           <input id="gif-url" type="hidden" />
         </div>
-        
-        <div id="local-gif-gallery" class="gallery-container"></div>
+        <div id="local-gif-gallery" style="margin:0.5rem 0 0.7rem; display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
         <p id="editor-feedback" class="editor-feedback" aria-live="polite"></p>
-        
         <div class="editor-actions">
-          <button id="btn-clear-pin-selection" type="button" class="btn-clear-all">Limpiar selección</button>
+          <button id="btn-clear-pin-selection" type="button" class="btn-clear-all">Limpiar seleccion</button>
         </div>
-        <div class="editor-actions" style="margin-top: 0.5rem;">
-          <button id="btn-place-gif-pin" type="button" class="btn-primary">Guardar Pin en Nube</button>
-          <button id="btn-clear-all-pins" type="button" class="btn-clear-all">Borrar todo</button>
+        <div class="editor-actions">
+          <button id="btn-place-gif-pin" type="button">Colocar pin GIF</button>
+          <button id="btn-clear-all-pins" type="button" class="btn-clear-all">Borrar pines</button>
         </div>
       </section>
     </aside>
 
-    <!-- Contenedor del Mapa -->
     <section class="map-wrap">
-      <div id="map" aria-label="Mapa interactivo de afectaciones"></div>
+      <div id="map" aria-label="Mapa principal"></div>
     </section>
   </main>
 
-  <!-- Modales (Videos y GIFs) -->
   <div id="video-modal" class="video-modal" aria-hidden="true">
     <div class="video-modal-backdrop" data-close-video="true"></div>
-    <section class="video-modal-card">
+    <section class="video-modal-card" role="dialog" aria-modal="true" aria-labelledby="video-modal-title">
       <header class="video-modal-header">
-        <h2 id="video-modal-title">Visor de Video</h2>
-        <button id="video-modal-close" type="button">Cerrar</button>
+        <h2 id="video-modal-title">Viaducto</h2>
+        <button id="video-modal-close" type="button" aria-label="Cerrar visor">Cerrar</button>
       </header>
       <div class="video-modal-body">
-        <video id="viaducto-video" controls playsinline>
+        <video id="viaducto-video" controls playsinline preload="metadata">
           <source src="data/GUADALAJARA-VIDEO-01-web.mp4" type="video/mp4" />
+          Tu navegador no soporta video.
         </video>
       </div>
     </section>
   </div>
 
+  <div id="save-toast" class="save-toast" aria-live="polite" aria-hidden="true"></div>
+
   <div id="gif-modal" class="video-modal" aria-hidden="true">
     <div class="video-modal-backdrop" data-close-gif="true"></div>
-    <section class="video-modal-card">
+    <section class="video-modal-card" role="dialog" aria-modal="true" aria-labelledby="gif-modal-title">
       <header class="video-modal-header">
-        <h2 id="gif-modal-title">Visor GIF</h2>
-        <button id="gif-modal-close" type="button">Cerrar</button>
+        <h2 id="gif-modal-title">GIF de afectacion</h2>
+        <button id="gif-modal-close" type="button" aria-label="Cerrar visor GIF">Cerrar</button>
       </header>
       <div class="video-modal-body gif-modal-body">
-        <img id="afectacion-gif" alt="GIF Afectación" />
+        <img id="afectacion-gif" alt="GIF de afectacion" />
       </div>
     </section>
   </div>
 
-  <!-- Toast para notificaciones -->
-  <div id="save-toast" class="save-toast" aria-live="polite" aria-hidden="true"></div>
-
-  <!-- Scripts de Librerías -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
-
-  <!-- Lógica Principal (Debe ser type="module" para usar Firebase) -->
-  <script type="module" src="app.js?v=20260430_cloud"></script>
+  <script src="app.js?v=20260430gif14"></script>
 </body>
 </html>
