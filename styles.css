@@ -1,3 +1,4 @@
+/* Switch reutilizable para modo edición global */
 .switch-toggle {
   display: inline-flex;
   align-items: center;
@@ -6,6 +7,10 @@
   font-size: 1rem;
   cursor: pointer;
   user-select: none;
+  background: #f7fafc;
+  border-radius: 1.2em;
+  padding: 0.18em 0.8em 0.18em 0.3em;
+  box-shadow: 0 1px 4px #0c5f7312;
 }
 .switch-toggle input[type="checkbox"] {
   width: 2.1em;

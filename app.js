@@ -28,12 +28,13 @@ const pinTitleInput = document.getElementById("pin-title");
 const pinDescriptionInput = document.getElementById("pin-description");
 const gifUrlInput = document.getElementById("gif-url");
 const btnPlaceGifPin = document.getElementById("btn-place-gif-pin");
-const btnPinSelectMode = document.getElementById("btn-pin-select-mode");
 const btnClearPinSelection = document.getElementById("btn-clear-pin-selection");
 const btnClearAllPins = document.getElementById("btn-clear-all-pins");
 const editorFeedback = document.getElementById("editor-feedback");
 const gifEditorCard = document.querySelector(".editor-gif-card");
 const afectEditorCard = document.querySelector(".editor-afect-card");
+const editModeSwitch = document.getElementById("edit-mode-switch");
+const editModeSwitchLabel = document.getElementById("edit-mode-switch-label");
 const saveToast = document.getElementById("save-toast");
 const videoModal = document.getElementById("video-modal");
 const videoModalClose = document.getElementById("video-modal-close");
@@ -632,37 +633,50 @@ function setupAfectacionEditorEvents() {
 }
 
 function setupPinEditorEvents() {
-  const pinSelectSwitch = document.getElementById("pin-select-switch");
-  const pinSelectSwitchLabel = document.getElementById("pin-select-switch-label");
-  const gifEditorCard = document.querySelector(".editor-gif-card");
-  if (!pinAfectacionesSelect || !pinTitleInput || !pinDescriptionInput || !gifUrlInput || !btnPlaceGifPin || !pinSelectSwitch || !pinSelectSwitchLabel || !gifEditorCard) {
+  if (!pinAfectacionesSelect || !pinTitleInput || !pinDescriptionInput || !gifUrlInput || !btnPlaceGifPin || !gifEditorCard || !afectEditorCard || !editModeSwitch || !editModeSwitchLabel) {
     return;
   }
-  // Activar/desactivar modo selección en mapa con switch visual
-  pinSelectSwitch.addEventListener("change", () => {
-    pinSelectionMode = pinSelectSwitch.checked;
+
+  // Switch global de modo edición
+  editModeSwitch.addEventListener("change", () => {
+    pinSelectionMode = editModeSwitch.checked;
     updatePinSelectionUi();
+    // Mostrar/ocultar paneles de edición
     if (pinSelectionMode) {
+      gifEditorCard.style.display = "block";
+      afectEditorCard.style.display = "block";
       gifEditorCard.classList.add("edit-mode");
-      pinSelectSwitchLabel.textContent = "Modo edición: selecciona en el mapa";
+      editModeSwitchLabel.textContent = "Modo edición: selecciona en el mapa";
       if (!document.getElementById("edit-mode-feedback")) {
         const feedback = document.createElement("div");
         feedback.id = "edit-mode-feedback";
         feedback.className = "edit-mode-feedback";
-        feedback.textContent = "Modo edición activo: haz clic en los puntos del mapa para seleccionar/deseleccionar.";
+        feedback.textContent = "Modo edición activo: haz clic en los puntos del mapa para seleccionar/deseleccionar o colocar pin.";
         gifEditorCard.insertBefore(feedback, gifEditorCard.firstChild);
       }
     } else {
+      gifEditorCard.style.display = "none";
+      afectEditorCard.style.display = "none";
       gifEditorCard.classList.remove("edit-mode");
-      pinSelectSwitchLabel.textContent = "Seleccionar en mapa";
+      editModeSwitchLabel.textContent = "Modo edición";
       clearPinSelection();
       const feedback = document.getElementById("edit-mode-feedback");
       if (feedback) feedback.remove();
-      flashEditorFeedback("Modo selección desactivado.", "warn");
+      flashEditorFeedback("Modo edición desactivado.", "warn");
     }
   });
 
+  // Inicializar visibilidad según estado inicial
+  if (!pinSelectionMode) {
+    gifEditorCard.style.display = "none";
+    afectEditorCard.style.display = "none";
+  }
+
   btnPlaceGifPin.addEventListener("click", () => {
+    if (!pinSelectionMode) {
+      showEditorFeedback("Activa el modo edición para colocar pines.", "warn");
+      return;
+    }
     const gifUrl = String(gifUrlInput.value || "").trim();
     const title = String(pinTitleInput.value || "").trim();
     const description = String(pinDescriptionInput.value || "").trim();
@@ -700,17 +714,13 @@ function setupPinEditorEvents() {
   }
 
   map.on("click", (event) => {
-    // Si hay un borrador de pin y NO está activo el modo selección, permite colocar el pin
-    if (pendingPinDraft && !pinSelectionMode) {
+    // Solo en modo edición se puede colocar pin
+    if (!pinSelectionMode) return;
+    if (pendingPinDraft) {
       placePendingPinAtLatLng(event.latlng);
       return;
     }
-    // Si está activo el modo selección, ignora clics en el fondo del mapa
-    if (pinSelectionMode) {
-      // No hacer nada, solo los puntos de afectación manejan selección
-      return;
-    }
-    // Si no hay borrador ni modo selección, no hacer nada
+    // Si no hay borrador, no hacer nada (solo puntos manejan selección)
   });
 }
 
