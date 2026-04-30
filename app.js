@@ -16,8 +16,12 @@ const btnClearFilters = document.getElementById("btn-clear-filters");
 const btnFit = document.getElementById("btn-fit");
 const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
+
+// Elementos opcionales (Protegidos por si no existen en el HTML)
 const afectacionSelect = document.getElementById("afectacion-select");
 const pinAfectacionesSelect = document.getElementById("pin-afectaciones");
+const afectEditorCard = document.querySelector(".editor-afect-card");
+
 const pinSelectedCount = document.getElementById("pin-selected-count");
 const pinTitleInput = document.getElementById("pin-title");
 const pinDescriptionInput = document.getElementById("pin-description");
@@ -27,7 +31,6 @@ const btnClearPinSelection = document.getElementById("btn-clear-pin-selection");
 const btnClearAllPins = document.getElementById("btn-clear-all-pins");
 const editorFeedback = document.getElementById("editor-feedback");
 const gifEditorCard = document.querySelector(".editor-gif-card");
-const afectEditorCard = document.querySelector(".editor-afect-card");
 const editModeSwitch = document.getElementById("edit-mode-switch");
 const editModeSwitchLabel = document.getElementById("edit-mode-switch-label");
 const saveToast = document.getElementById("save-toast");
@@ -153,12 +156,12 @@ function showMapOverlayMessage(msg) {
   overlay.textContent = msg;
 }
 
-// Control de Video Modal (Definiendo funciones vacías si no existen, reemplázalas si ya tienes la lógica)
 function closeViaductoVideo() {
   if (!videoModal) return;
   videoModal.classList.remove("open");
   if (viaductoVideo) viaductoVideo.pause();
 }
+
 function openViaductoVideo() {
   if (!videoModal) return;
   videoModal.classList.add("open");
@@ -346,6 +349,7 @@ function toggleAfectacionSelectionForPin(afectKey) {
 function clearPinSelection() {
   selectedAfectacionesForPin.clear();
   updatePinSelectionUi();
+  renderCurrentLayer(lastFilteredFeatures, { skipFit: true });
 }
 
 function buildPointIcon(clasifica, isSelected = false) {
@@ -496,6 +500,7 @@ function placePendingPinAtLatLng(latlng) {
   renderGifPinsAndLinks();
 
   pendingPinDraft = null;
+  clearPinSelection(); // Limpiar la selección actual para el próximo pin
   showEditorFeedback("Pin GIF guardado y vinculado correctamente.", "ok");
   setStatus("Pin GIF creado y vinculado.");
   return true;
@@ -537,18 +542,18 @@ function attachAfectacionLayerEvents(layer, props) {
 }
 
 function setupPinEditorEvents() {
-  if (!pinAfectacionesSelect || !pinTitleInput || !pinDescriptionInput || !gifUrlInput || !btnPlaceGifPin || !gifEditorCard || !afectEditorCard || !editModeSwitch || !editModeSwitchLabel) {
-    return;
-  }
+  if (!editModeSwitch || !gifEditorCard) return;
 
   editModeSwitch.addEventListener("change", () => {
     pinSelectionMode = editModeSwitch.checked;
     updatePinSelectionUi();
+    
     if (pinSelectionMode) {
       gifEditorCard.style.display = "block";
-      afectEditorCard.style.display = "block";
+      if (afectEditorCard) afectEditorCard.style.display = "block";
       gifEditorCard.classList.add("edit-mode");
-      editModeSwitchLabel.textContent = "Modo edición: selecciona en el mapa";
+      if (editModeSwitchLabel) editModeSwitchLabel.textContent = "Modo edición: selecciona en el mapa";
+      
       if (!document.getElementById("edit-mode-feedback")) {
         const feedback = document.createElement("div");
         feedback.id = "edit-mode-feedback";
@@ -558,9 +563,10 @@ function setupPinEditorEvents() {
       }
     } else {
       gifEditorCard.style.display = "none";
-      afectEditorCard.style.display = "none";
+      if (afectEditorCard) afectEditorCard.style.display = "none";
       gifEditorCard.classList.remove("edit-mode");
-      editModeSwitchLabel.textContent = "Modo edición";
+      if (editModeSwitchLabel) editModeSwitchLabel.textContent = "Modo edición";
+      
       clearPinSelection();
       const feedback = document.getElementById("edit-mode-feedback");
       if (feedback) feedback.remove();
@@ -570,34 +576,37 @@ function setupPinEditorEvents() {
 
   if (!pinSelectionMode) {
     gifEditorCard.style.display = "none";
-    afectEditorCard.style.display = "none";
+    if (afectEditorCard) afectEditorCard.style.display = "none";
   }
 
-  btnPlaceGifPin.addEventListener("click", () => {
-    if (!pinSelectionMode) {
-      showEditorFeedback("Activa el modo edición para colocar pines.", "warn");
-      return;
-    }
-    const gifUrl = String(gifUrlInput.value || "").trim();
-    const title = String(pinTitleInput.value || "").trim();
-    const description = String(pinDescriptionInput.value || "").trim();
-    const afectKeys = Array.from(pinAfectacionesSelect.selectedOptions).map((opt) => opt.value);
+  if (btnPlaceGifPin) {
+    btnPlaceGifPin.addEventListener("click", () => {
+      if (!pinSelectionMode) {
+        showEditorFeedback("Activa el modo edición para colocar pines.", "warn");
+        return;
+      }
+      
+      const gifUrl = gifUrlInput ? String(gifUrlInput.value || "").trim() : "";
+      const title = pinTitleInput ? String(pinTitleInput.value || "").trim() : "";
+      const description = pinDescriptionInput ? String(pinDescriptionInput.value || "").trim() : "";
+      const afectKeys = Array.from(selectedAfectacionesForPin);
 
-    if (!gifUrl) {
-      showEditorFeedback("Captura una URL GIF antes de colocar el pin.", "warn");
-      return;
-    }
+      if (!gifUrl) {
+        showEditorFeedback("Captura una URL GIF antes de colocar el pin.", "warn");
+        return;
+      }
 
-    if (!afectKeys.length) {
-      showEditorFeedback("Selecciona al menos una afectación para vincular.", "warn");
-      return;
-    }
+      if (!afectKeys.length) {
+        showEditorFeedback("Selecciona al menos una afectación en el mapa para vincular.", "warn");
+        return;
+      }
 
-    pendingPinDraft = { gifUrl, title, description, afectKeys };
+      pendingPinDraft = { gifUrl, title, description, afectKeys };
 
-    setStatus("Haz clic en el mapa para colocar el pin GIF.");
-    showEditorFeedback("Listo: haz clic en el mapa para colocar el pin.", "ok");
-  });
+      setStatus("Haz clic en el mapa para colocar el pin GIF.");
+      showEditorFeedback("Listo: haz clic en el mapa para colocar el pin.", "ok");
+    });
+  }
 
   if (btnClearAllPins) {
     btnClearAllPins.addEventListener("click", () => {
@@ -606,6 +615,13 @@ function setupPinEditorEvents() {
       renderGifPinsAndLinks();
       showEditorFeedback("Se borraron todos los pines GIF.", "warn");
       setStatus("Se borraron todos los pines GIF.");
+    });
+  }
+  
+  if (btnClearPinSelection) {
+    btnClearPinSelection.addEventListener("click", () => {
+      clearPinSelection();
+      showEditorFeedback("Selección limpiada.", "ok");
     });
   }
 
@@ -1174,8 +1190,8 @@ async function loadKmzLayer() {
     setStatus(`Error al cargar KMZ: ${err.message || err}`);
     setMetricValue(metricTotal, "-");
     allMunicipioCounts = {};
-    clasificaList.innerHTML = "<small>No fue posible obtener resumen.</small>";
-    muniList.innerHTML = "<small>No fue posible obtener resumen.</small>";
+    if (clasificaList) clasificaList.innerHTML = "<small>No fue posible obtener resumen.</small>";
+    if (muniList) muniList.innerHTML = "<small>No fue posible obtener resumen.</small>";
     removeMunicipioBoundary();
   }
 }
@@ -1222,24 +1238,28 @@ async function loadTroncalLayer() {
 }
 
 // Listeners de los botones principales
-btnReload.addEventListener("click", loadKmzLayer);
-btnClearFilters.addEventListener("click", () => {
-  selectedMunicipio = null;
-  selectedClasificaciones.clear();
-  municipioSearchTerm = "";
-  muniSearch.value = "";
-  applyFilters();
-});
-btnFit.addEventListener("click", () => {
-  const didFit =
-    fitMapToFeatures(lastFilteredFeatures) ||
-    fitMapToFeatures(sourceFeatureCollection && sourceFeatureCollection.features);
+if (btnReload) btnReload.addEventListener("click", loadKmzLayer);
+if (btnClearFilters) {
+  btnClearFilters.addEventListener("click", () => {
+    selectedMunicipio = null;
+    selectedClasificaciones.clear();
+    municipioSearchTerm = "";
+    if (muniSearch) muniSearch.value = "";
+    applyFilters();
+  });
+}
+if (btnFit) {
+  btnFit.addEventListener("click", () => {
+    const didFit =
+      fitMapToFeatures(lastFilteredFeatures) ||
+      fitMapToFeatures(sourceFeatureCollection && sourceFeatureCollection.features);
 
-  if (!didFit) {
-    map.setView([20.67, -103.35], 8, { animate: true });
-    setStatus("No hay elementos para centrar. Se regreso a la vista general.");
-  }
-});
+    if (!didFit) {
+      map.setView([20.67, -103.35], 8, { animate: true });
+      setStatus("No hay elementos para centrar. Se regreso a la vista general.");
+    }
+  });
+}
 
 // Inicialización de la aplicación
 loadGifPinsFromStorage();
