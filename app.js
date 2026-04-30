@@ -331,11 +331,7 @@ function updatePinSelectionUi() {
     pinSelectedCount.classList.add("pulse");
     setTimeout(() => pinSelectedCount.classList.remove("pulse"), 700);
   }
-
-  if (btnPinSelectMode) {
-    btnPinSelectMode.classList.toggle("active", pinSelectionMode);
-    btnPinSelectMode.textContent = pinSelectionMode ? "Seleccion en mapa: activa" : "Seleccionar en mapa";
-  }
+  // Eliminada referencia a btnPinSelectMode
 }
 
 function flashEditorFeedback(msg, tone = "ok") {
