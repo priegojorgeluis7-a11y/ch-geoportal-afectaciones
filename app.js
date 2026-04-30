@@ -282,7 +282,7 @@ map.getPane("afectacionesPane").style.zIndex = 420;
 map.createPane("boundaryPane");
 map.getPane("boundaryPane").style.zIndex = 430;
 map.createPane("poiPane");
-map.getPane("poiPane").style.zIndex = 500;
+map.getPane("poiPane").style.zIndex = 405;
 
 const svgRenderer = L.svg({ padding: 0.5 });
 
@@ -583,13 +583,20 @@ function renderGifPinsAndLinks() {
     return;
   }
 
+  const zoom = map.getZoom();
+  const zoomFactor = Math.max(0, Math.min(1, (zoom - 8) / 7));
+  const pinAlpha = (0.6 + zoomFactor * 0.32).toFixed(2);
+  const pinBorderAlpha = (0.52 + zoomFactor * 0.3).toFixed(2);
+  const pinTextAlpha = (0.78 + zoomFactor * 0.2).toFixed(2);
+  const pinShadowAlpha = (0.14 + zoomFactor * 0.18).toFixed(2);
+
   for (const pin of gifPins) {
     const marker = L.marker([pin.lat, pin.lng], {
       pane: "poiPane",
       draggable: pinSelectionMode,
       icon: L.divIcon({
         className: "gif-pin-wrap",
-        html: '<div class="gif-pin-icon">GIF</div>',
+        html: `<div class="gif-pin-icon" style="--gif-pin-alpha:${pinAlpha};--gif-pin-border-alpha:${pinBorderAlpha};--gif-pin-text-alpha:${pinTextAlpha};--gif-pin-shadow-alpha:${pinShadowAlpha};">GIF</div>`,
         iconSize: [28, 28],
         iconAnchor: [14, 14],
       }),
@@ -859,6 +866,12 @@ function setupPinEditorEvents() {
     if (!pinSelectionMode) return;
     if (pendingPinDraft) {
       placePendingPinAtLatLng(event.latlng);
+    }
+  });
+
+  map.on("zoomend", () => {
+    if (showGifPins && gifPins.length) {
+      renderGifPinsAndLinks();
     }
   });
 }

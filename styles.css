@@ -501,13 +501,16 @@ button:disabled {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, rgba(11, 107, 81, 0.62), rgba(31, 155, 121, 0.62));
-  border: 1px solid rgba(232, 255, 247, 0.62);
-  color: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(
+    145deg,
+    rgba(11, 107, 81, var(--gif-pin-alpha, 0.78)),
+    rgba(31, 155, 121, var(--gif-pin-alpha, 0.78))
+  );
+  border: 1px solid rgba(232, 255, 247, var(--gif-pin-border-alpha, 0.72));
+  color: rgba(255, 255, 255, var(--gif-pin-text-alpha, 0.92));
   font-weight: 700;
   font-size: 0.62rem;
-  opacity: 0.86;
-  box-shadow: 0 3px 8px rgba(11, 107, 81, 0.2);
+  box-shadow: 0 3px 8px rgba(11, 107, 81, var(--gif-pin-shadow-alpha, 0.2));
 }
 
 .map-point {
