@@ -500,6 +500,20 @@ function renderGifPinsAndLinks() {
       openGifModal(pin.gifUrl, { nom_mun: pin.title || "Pin GIF" });
     });
 
+    marker.on("contextmenu", () => {
+      const label = pin.title ? `"${pin.title}"` : "este pin GIF";
+      if (confirm(`¿Borrar ${label}?`)) {
+        const idx = gifPins.indexOf(pin);
+        if (idx !== -1) {
+          gifPins.splice(idx, 1);
+          persistGifPins();
+          renderGifPinsAndLinks();
+          setStatus("Pin GIF borrado.");
+          showEditorFeedback("Pin GIF borrado.", "warn");
+        }
+      }
+    });
+
     marker.on("dragend", () => {
       const next = marker.getLatLng();
       pin.lat = next.lat;
@@ -510,7 +524,7 @@ function renderGifPinsAndLinks() {
       showEditorFeedback("Pin GIF movido correctamente.", "ok");
     });
 
-    marker.bindTooltip(pin.title || "Pin GIF", { direction: "top", offset: [0, -16] });
+    marker.bindTooltip((pin.title || "Pin GIF") + " · Clic: ver GIF · Clic derecho: borrar", { direction: "top", offset: [0, -16] });
     marker.addTo(gifPinLayer);
 
     for (const afectKey of pin.afectKeys || []) {
