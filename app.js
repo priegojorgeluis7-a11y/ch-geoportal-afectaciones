@@ -590,8 +590,8 @@ function renderGifPinsAndLinks() {
       icon: L.divIcon({
         className: "gif-pin-wrap",
         html: '<div class="gif-pin-icon">GIF</div>',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
       }),
       title: pin.title || "Pin GIF",
     });
