@@ -1327,6 +1327,8 @@ async function loadKmzLayer() {
     allMunicipioCounts = countByField(sourceFeatureCollection.features, "nom_mun");
 
     if (!sourceFeatureCollection.features.length) {
+      setStatus("No se encontraron afectaciones en el archivo KMZ.");
+      showMapOverlayMessage("No se encontraron afectaciones en el archivo KMZ.");
       throw new Error("No se encontraron entidades geograficas en el KMZ.");
     }
 
@@ -1350,7 +1352,35 @@ async function loadTroncalLayer() {
     if (troncalLayer) return;
 
     const troncalCollection = await parseKmzToGeoJson(TRONCAL_KMZ_PATH);
+    if (!troncalCollection.features || !troncalCollection.features.length) {
+      setStatus("No se encontraron datos de troncal en el archivo KMZ.");
+      showMapOverlayMessage("No se encontraron datos de troncal en el archivo KMZ.");
+      return;
+    }
     troncalLayer = L.geoJSON(troncalCollection, {
+      // Muestra un mensaje superpuesto en el mapa para errores críticos
+      function showMapOverlayMessage(msg) {
+        let overlay = document.getElementById("map-overlay-message");
+        if (!overlay) {
+          overlay = document.createElement("div");
+          overlay.id = "map-overlay-message";
+          overlay.style.position = "absolute";
+          overlay.style.top = "50%";
+          overlay.style.left = "50%";
+          overlay.style.transform = "translate(-50%, -50%)";
+          overlay.style.background = "rgba(255,255,255,0.95)";
+          overlay.style.color = "#b00";
+          overlay.style.fontSize = "1.3rem";
+          overlay.style.fontWeight = "bold";
+          overlay.style.padding = "2rem 2.5rem";
+          overlay.style.borderRadius = "1.2rem";
+          overlay.style.boxShadow = "0 2px 16px #0002";
+          overlay.style.zIndex = 9999;
+          overlay.style.textAlign = "center";
+          document.body.appendChild(overlay);
+        }
+        overlay.textContent = msg;
+      }
       pane: "troncalPane",
       interactive: false,
       bubblingMouseEvents: false,
