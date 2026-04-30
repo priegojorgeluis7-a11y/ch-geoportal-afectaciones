@@ -16,12 +16,7 @@ const btnFit = document.getElementById("btn-fit");
 const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
 const afectacionSelect = document.getElementById("afectacion-select");
-const afectacionSelectedLabel = document.getElementById("afectacion-selected-label");
-// Eliminado input de número de afectación
-const afectacionDescripcionInput = document.getElementById("afectacion-descripcion");
-const btnSaveAfectacion = document.getElementById("btn-save-afectacion");
-const btnClearAfectacion = document.getElementById("btn-clear-afectacion");
-const afectFeedback = document.getElementById("afect-feedback");
+// Eliminadas variables del editor de afectaciones
 const pinAfectacionesSelect = document.getElementById("pin-afectaciones");
 const pinSelectedCount = document.getElementById("pin-selected-count");
 const pinTitleInput = document.getElementById("pin-title");
@@ -210,14 +205,7 @@ function buildStableFeatureKey(feature, fallbackIndex) {
   return `af${hash.toString(16)}`;
 }
 
-function getAfectacionMeta(key) {
-  if (!key) return null;
-  const entry = afectacionMeta[key];
-  if (!entry || typeof entry !== "object") return null;
-  return {
-    descripcion: String(entry.descripcion || "").trim(),
-  };
-}
+// Eliminada función de metadatos de afectación
 
 function buildAfectacionLabel(props) {
   const municipio = String(props.nom_mun || "Sin municipio").trim();
@@ -489,22 +477,10 @@ function buildLinkedPinsHtml(afectKey) {
   return `<div style="margin-top:0.55rem;"><strong>Pines vinculados:</strong>${description}<div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.35rem;">${buttons}</div></div>`;
 }
 
-function fillAfectacionEditorForm(afectKey) {
-  selectedAfectacionKey = afectKey || "";
-
-  if (afectacionSelect) {
-    afectacionSelect.value = selectedAfectacionKey;
-  }
-
-  const meta = getAfectacionMeta(selectedAfectacionKey);
-  if (afectacionDescripcionInput) {
-    afectacionDescripcionInput.value = meta ? meta.descripcion : "";
-  }
-}
+// Eliminada función de llenado de formulario de edición de afectación
 
 function openPopupForLayer(layer, props) {
   const afectKey = buildAfectacionKey(props);
-  fillAfectacionEditorForm(afectKey);
   layer.bindPopup(toPopupRows(props, afectKey), { maxWidth: 420 });
   layer.openPopup();
 }
@@ -534,7 +510,7 @@ function placePendingPinAtLatLng(latlng) {
 
 function handleAfectacionLayerClick(layer, props, event) {
   const afectKey = buildAfectacionKey(props);
-  fillAfectacionEditorForm(afectKey);
+    // Eliminada llamada a llenado de formulario de edición de afectación
 
   if (pendingPinDraft) {
     const latlng =
@@ -572,57 +548,7 @@ function attachAfectacionLayerEvents(layer, props) {
   });
 }
 
-function setupAfectacionEditorEvents() {
-  if (!afectacionDescripcionInput || !btnSaveAfectacion) {
-    return;
-  }
-
-  btnSaveAfectacion.addEventListener("click", () => {
-    if (!selectedAfectacionKey) {
-      showAfectFeedback("Selecciona una afectación para guardar su descripción.", "warn");
-      return;
-    }
-
-    afectacionMeta[selectedAfectacionKey] = {
-      descripcion: String(afectacionDescripcionInput.value || "").trim(),
-    };
-
-    persistAfectacionMeta();
-
-    const catalogItem = afectacionCatalog.get(selectedAfectacionKey);
-    if (catalogItem && catalogItem.props) {
-      catalogItem.label = buildAfectacionLabel(catalogItem.props);
-      afectacionCatalog.set(selectedAfectacionKey, catalogItem);
-      refreshPinAfectacionesSelect();
-    }
-
-    showAfectFeedback("Descripción guardada correctamente.", "ok");
-    setStatus("Descripción de afectación actualizada.");
-  });
-
-  if (btnClearAfectacion) {
-    btnClearAfectacion.addEventListener("click", () => {
-      if (!selectedAfectacionKey) {
-        showAfectFeedback("Selecciona una afectacion para limpiar su ficha.", "warn");
-        return;
-      }
-
-      delete afectacionMeta[selectedAfectacionKey];
-      persistAfectacionMeta();
-      fillAfectacionEditorForm(selectedAfectacionKey);
-
-      const catalogItem = afectacionCatalog.get(selectedAfectacionKey);
-      if (catalogItem && catalogItem.props) {
-        catalogItem.label = buildAfectacionLabel(catalogItem.props);
-        afectacionCatalog.set(selectedAfectacionKey, catalogItem);
-        refreshPinAfectacionesSelect();
-      }
-
-      showAfectFeedback("Se limpio la ficha de la afectacion seleccionada.", "warn");
-      setStatus("Ficha de afectacion limpiada.");
-    });
-  }
-}
+// Eliminada función de eventos de edición de afectación
 
 function setupPinEditorEvents() {
   if (!pinAfectacionesSelect || !pinTitleInput || !pinDescriptionInput || !gifUrlInput || !btnPlaceGifPin || !gifEditorCard || !afectEditorCard || !editModeSwitch || !editModeSwitchLabel) {
@@ -820,7 +746,7 @@ let lastFilteredFeatures = [];
 
 loadGifPinsFromStorage();
 loadAfectacionMetaFromStorage();
-setupAfectacionEditorEvents();
+// Eliminada inicialización de eventos de edición de afectación
 setupPinEditorEvents();
 updatePinSelectionUi();
 
@@ -901,16 +827,12 @@ function radiusByPondera(value) {
   return Math.max(8, Math.min(16, 6 + num * 1.0));
 }
 
-function toPopupRows(props, afectKey = "") {
-  const meta = getAfectacionMeta(afectKey);
   const fields = [
-    ["No. afectacion", meta && meta.numero ? meta.numero : ""],
     ["Tramo", props.tramo],
     ["Estado", props.nom_ent],
     ["Municipio", props.nom_mun],
     ["Clasificacion", props.Clasifica],
     ["Clave geo", props.cve_geo],
-    ["Descripcion", meta && meta.descripcion ? meta.descripcion : ""],
   ];
 
   const rows = fields
@@ -1403,7 +1325,7 @@ async function loadKmzLayer() {
     }
 
     refreshPinAfectacionesSelect();
-    fillAfectacionEditorForm(selectedAfectacionKey);
+    // Eliminada llamada a llenado de formulario de edición de afectación
     renderGifPinsAndLinks();
 
     allMunicipioCounts = countByField(sourceFeatureCollection.features, "nom_mun");
