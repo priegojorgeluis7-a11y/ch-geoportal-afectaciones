@@ -593,12 +593,16 @@ function renderGifPinsAndLinks() {
 
   const zoom = map.getZoom();
   const zoomFactor = Math.max(0, Math.min(1, (zoom - 8) / 7));
+  const isSatelliteView = map.hasLayer(baseImagery);
   const pinSize = Math.round(22 + zoomFactor * 18);
   const pinFont = (0.5 + zoomFactor * 0.28).toFixed(2);
   const pinAlpha = (0.6 + zoomFactor * 0.32).toFixed(2);
   const pinBorderAlpha = (0.52 + zoomFactor * 0.3).toFixed(2);
   const pinTextAlpha = (0.78 + zoomFactor * 0.2).toFixed(2);
   const pinShadowAlpha = (0.14 + zoomFactor * 0.18).toFixed(2);
+  const linkColor = isSatelliteView ? "#ffffff" : "#0c5f73";
+  const linkWeight = isSatelliteView ? 3 : 2;
+  const linkOpacity = isSatelliteView ? 0.88 : 0.55;
 
   for (const pin of gifPins) {
     const marker = L.marker([pin.lat, pin.lng], {
@@ -662,9 +666,9 @@ function renderGifPinsAndLinks() {
         {
           pane: "gifLinksPane",
           className: "gif-link-animated",
-          color: "#0c5f73",
-          weight: 2,
-          opacity: 0.55,
+          color: linkColor,
+          weight: linkWeight,
+          opacity: linkOpacity,
           dashArray: "6 4",
           interactive: false,
         }
@@ -881,6 +885,12 @@ function setupPinEditorEvents() {
   });
 
   map.on("zoomend", () => {
+    if (showGifPins && gifPins.length) {
+      renderGifPinsAndLinks();
+    }
+  });
+
+  map.on("baselayerchange", () => {
     if (showGifPins && gifPins.length) {
       renderGifPinsAndLinks();
     }
