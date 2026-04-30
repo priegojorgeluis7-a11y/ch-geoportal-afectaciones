@@ -700,7 +700,17 @@ function setupPinEditorEvents() {
   }
 
   map.on("click", (event) => {
-    placePendingPinAtLatLng(event.latlng);
+    // Si hay un borrador de pin y NO está activo el modo selección, permite colocar el pin
+    if (pendingPinDraft && !pinSelectionMode) {
+      placePendingPinAtLatLng(event.latlng);
+      return;
+    }
+    // Si está activo el modo selección, ignora clics en el fondo del mapa
+    if (pinSelectionMode) {
+      // No hacer nada, solo los puntos de afectación manejan selección
+      return;
+    }
+    // Si no hay borrador ni modo selección, no hacer nada
   });
 }
 
