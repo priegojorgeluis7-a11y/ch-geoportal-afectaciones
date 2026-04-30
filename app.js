@@ -1,6 +1,6 @@
 // --- Galería de GIFs locales ---
 const LOCAL_GIFS = [
-  "gifs/G 2,3,4.gif",
+  "gifs/G_2_3_4.gif",
   "gifs/G1.gif",
   "gifs/G5.gif",
   "gifs/G6.gif",
@@ -47,7 +47,7 @@ const LOCAL_GIFS = [
   "gifs/G50.gif",
   "gifs/G51.gif",
   "gifs/G52.gif",
-  "gifs/G52(1).gif",
+  "gifs/G52_1.gif",
   "gifs/G53.gif",
   "gifs/G54.gif",
   "gifs/G55.gif",
