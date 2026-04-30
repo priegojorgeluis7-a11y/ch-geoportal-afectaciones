@@ -1259,27 +1259,35 @@ function setupFilterEvents() {
 }
 
 async function parseKmzToGeoJson(kmzPath) {
-  const response = await fetch(kmzPath);
-  if (!response.ok) {
-    throw new Error(`No se pudo leer ${kmzPath}. Estado HTTP ${response.status}`);
+  try {
+    const response = await fetch(kmzPath);
+    if (!response.ok) {
+      showMapOverlayMessage(`No se pudo leer ${kmzPath}. Estado HTTP ${response.status}`);
+      throw new Error(`No se pudo leer ${kmzPath}. Estado HTTP ${response.status}`);
+    }
+
+    const kmzBuffer = await response.arrayBuffer();
+    const zip = await JSZip.loadAsync(kmzBuffer);
+
+    const kmlName = Object.keys(zip.files).find((name) => name.toLowerCase().endsWith(".kml"));
+    if (!kmlName) {
+      showMapOverlayMessage("El KMZ no contiene archivo KML interno.");
+      throw new Error("El KMZ no contiene archivo KML interno.");
+    }
+
+    const kmlText = await zip.file(kmlName).async("string");
+    const kmlDoc = new DOMParser().parseFromString(kmlText, "text/xml");
+    const parseError = kmlDoc.querySelector("parsererror");
+    if (parseError) {
+      showMapOverlayMessage("No fue posible interpretar el KML interno del KMZ.");
+      throw new Error("No fue posible interpretar el KML interno del KMZ.");
+    }
+
+    return toGeoJSON.kml(kmlDoc);
+  } catch (err) {
+    showMapOverlayMessage(`Error al cargar KMZ: ${err.message || err}`);
+    throw err;
   }
-
-  const kmzBuffer = await response.arrayBuffer();
-  const zip = await JSZip.loadAsync(kmzBuffer);
-
-  const kmlName = Object.keys(zip.files).find((name) => name.toLowerCase().endsWith(".kml"));
-  if (!kmlName) {
-    throw new Error("El KMZ no contiene archivo KML interno.");
-  }
-
-  const kmlText = await zip.file(kmlName).async("string");
-  const kmlDoc = new DOMParser().parseFromString(kmlText, "text/xml");
-  const parseError = kmlDoc.querySelector("parsererror");
-  if (parseError) {
-    throw new Error("No fue posible interpretar el KML interno del KMZ.");
-  }
-
-  return toGeoJSON.kml(kmlDoc);
 }
 
 async function loadKmzLayer() {
