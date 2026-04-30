@@ -5,6 +5,7 @@ const VIADUCTO_VIDEO_URL_LOCAL = "file:///Users/jorgeluispriegocruz/Downloads/GU
 const VIADUCTO_VIDEO_URL_WEB = "data/GUADALAJARA-VIDEO-01-web.mp4";
 const VIADUCTO_COORDS = [20.6525, -103.347306];
 
+// DOM Elements
 const statusText = document.getElementById("status-text");
 const metricTotal = document.getElementById("metric-total");
 const clasificaList = document.getElementById("clasifica-list");
@@ -16,7 +17,6 @@ const btnFit = document.getElementById("btn-fit");
 const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
 const afectacionSelect = document.getElementById("afectacion-select");
-// Eliminadas variables del editor de afectaciones
 const pinAfectacionesSelect = document.getElementById("pin-afectaciones");
 const pinSelectedCount = document.getElementById("pin-selected-count");
 const pinTitleInput = document.getElementById("pin-title");
@@ -40,7 +40,6 @@ const afectacionGif = document.getElementById("afectacion-gif");
 const gifModalTitle = document.getElementById("gif-modal-title");
 
 // Toggle panel en móvil
-// cache-bust: 20260429-2
 if (btnPanelToggle && filterPanel) {
   btnPanelToggle.addEventListener("click", () => {
     const isOpen = filterPanel.classList.toggle("open");
@@ -48,9 +47,36 @@ if (btnPanelToggle && filterPanel) {
   });
 }
 
-const map = L.map("map", {
-  zoomControl: true,
-}).setView([20.67, -103.35], 8);
+// Variables Globales
+const GIF_PINS_STORAGE_KEY = "gif-pins-v1";
+const AFECT_META_STORAGE_KEY = "afect-meta-v1";
+const afectacionCatalog = new Map();
+const afectacionFeatureIndex = new Map();
+let afectacionMeta = {};
+let selectedAfectacionKey = "";
+const selectedAfectacionesForPin = new Set();
+let pinSelectionMode = false;
+let gifPins = [];
+let pendingPinDraft = null;
+let gifPinLayer = null;
+let gifPinLinksLayer = null;
+
+let currentLayer = null;
+let troncalLayer = null;
+let municipioBoundaryLayer = null;
+let sourceFeatureCollection = null;
+let selectedMunicipio = null;
+const selectedClasificaciones = new Set();
+let pointAnimationFrameId = null;
+const municipioBoundaryIndex = new Map();
+let municipioSearchTerm = "";
+let allMunicipioCounts = {};
+const CLUSTER_THRESHOLD = 140;
+let lastFilteredFeatures = [];
+let layerControl;
+
+// Configuración Base de Leaflet
+const map = L.map("map", { zoomControl: true }).setView([20.67, -103.35], 8);
 
 map.createPane("troncalPane");
 map.getPane("troncalPane").style.zIndex = 350;
@@ -67,7 +93,7 @@ const svgRenderer = L.svg({ padding: 0.5 });
 const baseOSM = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: "&copy; OpenStreetMap",
   maxZoom: 20,
-});
+}).addTo(map);
 
 const baseTopo = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
   attribution: "Map data: &copy; OpenStreetMap, SRTM | Map style: &copy; OpenTopoMap",
@@ -78,14 +104,10 @@ const baseImagery = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   {
     attribution: "Tiles &copy; Esri",
-    // Esri no tiene cobertura completa en niveles muy altos para todas las zonas.
-    // maxNativeZoom evita pedir tiles inexistentes y Leaflet hace over-zoom visual.
     maxNativeZoom: 17,
     maxZoom: 22,
   }
 );
-
-baseOSM.addTo(map);
 
 const baseLayers = {
   Calles: baseOSM,
@@ -93,7 +115,7 @@ const baseLayers = {
   Satelite: baseImagery,
 };
 
-const layerControl = L.control.layers(baseLayers, {}, { collapsed: true }).addTo(map);
+layerControl = L.control.layers(baseLayers, {}, { collapsed: true }).addTo(map);
 
 const NorthControl = L.Control.extend({
   options: { position: "topright" },
@@ -105,44 +127,52 @@ const NorthControl = L.Control.extend({
     return container;
   },
 });
-
 map.addControl(new NorthControl());
 
-function openViaductoVideo() {
-  const isWebContext = window.location.protocol === "http:" || window.location.protocol === "https:";
-  const videoUrl = isWebContext ? VIADUCTO_VIDEO_URL_WEB : VIADUCTO_VIDEO_URL_LOCAL;
-
-  if (!videoModal || !viaductoVideo) {
-    window.open(videoUrl, "_blank", "noopener,noreferrer");
-    return;
+// Funciones de UI Global
+function showMapOverlayMessage(msg) {
+  let overlay = document.getElementById("map-overlay-message");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "map-overlay-message";
+    overlay.style.position = "absolute";
+    overlay.style.top = "50%";
+    overlay.style.left = "50%";
+    overlay.style.transform = "translate(-50%, -50%)";
+    overlay.style.background = "rgba(255,255,255,0.95)";
+    overlay.style.color = "#b00";
+    overlay.style.fontSize = "1.3rem";
+    overlay.style.fontWeight = "bold";
+    overlay.style.padding = "2rem 2.5rem";
+    overlay.style.borderRadius = "1.2rem";
+    overlay.style.boxShadow = "0 2px 16px #0002";
+    overlay.style.zIndex = 9999;
+    overlay.style.textAlign = "center";
+    document.body.appendChild(overlay);
   }
-
-  viaductoVideo.src = videoUrl;
-  videoModal.classList.add("open");
-  videoModal.setAttribute("aria-hidden", "false");
-  viaductoVideo.play().catch(() => {});
+  overlay.textContent = msg;
 }
 
+// Control de Video Modal (Definiendo funciones vacías si no existen, reemplázalas si ya tienes la lógica)
 function closeViaductoVideo() {
-  if (!videoModal || !viaductoVideo) return;
-
+  if (!videoModal) return;
   videoModal.classList.remove("open");
-  videoModal.setAttribute("aria-hidden", "true");
-  viaductoVideo.pause();
-  viaductoVideo.removeAttribute("src");
-  viaductoVideo.load();
+  if (viaductoVideo) viaductoVideo.pause();
+}
+function openViaductoVideo() {
+  if (!videoModal) return;
+  videoModal.classList.add("open");
+  if (viaductoVideo) viaductoVideo.play();
 }
 
 if (videoModal && videoModalClose) {
   videoModalClose.addEventListener("click", closeViaductoVideo);
-
   videoModal.addEventListener("click", (event) => {
     const target = event.target;
     if (target instanceof HTMLElement && target.dataset.closeVideo === "true") {
       closeViaductoVideo();
     }
   });
-
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && videoModal.classList.contains("open")) {
       closeViaductoVideo();
@@ -150,19 +180,7 @@ if (videoModal && videoModalClose) {
   });
 }
 
-const GIF_PINS_STORAGE_KEY = "gif-pins-v1";
-const AFECT_META_STORAGE_KEY = "afect-meta-v1";
-const afectacionCatalog = new Map();
-const afectacionFeatureIndex = new Map();
-let afectacionMeta = {};
-let selectedAfectacionKey = "";
-const selectedAfectacionesForPin = new Set();
-let pinSelectionMode = false;
-let gifPins = [];
-let pendingPinDraft = null;
-let gifPinLayer = null;
-let gifPinLinksLayer = null;
-
+// Utilidades Lógicas
 function buildAfectacionKey(props) {
   const stableKey = String(props._afect_key || "").trim();
   if (stableKey) return `key:${stableKey}`;
@@ -201,11 +219,8 @@ function buildStableFeatureKey(feature, fallbackIndex) {
   for (let i = 0; i < seed.length; i += 1) {
     hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   }
-
   return `af${hash.toString(16)}`;
 }
-
-// Eliminada función de metadatos de afectación
 
 function buildAfectacionLabel(props) {
   const municipio = String(props.nom_mun || "Sin municipio").trim();
@@ -229,19 +244,6 @@ function loadAfectacionMetaFromStorage() {
 
 function persistAfectacionMeta() {
   localStorage.setItem(AFECT_META_STORAGE_KEY, JSON.stringify(afectacionMeta));
-}
-
-function showAfectFeedback(message, tone = "ok") {
-  if (!afectFeedback) return;
-  afectFeedback.textContent = message;
-  afectFeedback.classList.remove("ok", "warn");
-  if (tone) afectFeedback.classList.add(tone);
-
-  if (afectEditorCard && tone === "ok") {
-    afectEditorCard.classList.remove("saved-pulse");
-    void afectEditorCard.offsetWidth;
-    afectEditorCard.classList.add("saved-pulse");
-  }
 }
 
 function showEditorFeedback(message, tone = "ok") {
@@ -305,22 +307,6 @@ function refreshPinAfectacionesSelect() {
       afectacionSelect.value = selectedAfectacionKey;
     }
   }
-
-  updateSelectedAfectacionLabel();
-}
-
-function updateSelectedAfectacionLabel() {
-  if (!afectacionSelectedLabel) return;
-
-  if (!selectedAfectacionKey) {
-    afectacionSelectedLabel.textContent = "Ninguna afectacion seleccionada.";
-    return;
-  }
-
-  const item = afectacionCatalog.get(selectedAfectacionKey);
-  afectacionSelectedLabel.textContent = item
-    ? `Seleccionada: ${item.label}`
-    : "Ninguna afectacion seleccionada.";
 }
 
 function updatePinSelectionUi() {
@@ -331,7 +317,6 @@ function updatePinSelectionUi() {
     pinSelectedCount.classList.add("pulse");
     setTimeout(() => pinSelectedCount.classList.remove("pulse"), 700);
   }
-  // Eliminada referencia a btnPinSelectMode
 }
 
 function flashEditorFeedback(msg, tone = "ok") {
@@ -350,13 +335,11 @@ function isAfectacionSelectedForPin(afectKey) {
 
 function toggleAfectacionSelectionForPin(afectKey) {
   if (!afectKey) return;
-
   if (selectedAfectacionesForPin.has(afectKey)) {
     selectedAfectacionesForPin.delete(afectKey);
   } else {
     selectedAfectacionesForPin.add(afectKey);
   }
-
   updatePinSelectionUi();
 }
 
@@ -371,7 +354,7 @@ function buildPointIcon(clasifica, isSelected = false) {
 
   return L.divIcon({
     className: "",
-    html: `<div class=\"map-point${selectedClass}\" style=\"--point-fill:${classStyle.fill};--point-stroke:${classStyle.stroke}\" title=\"Haz clic para seleccionar/deseleccionar para pin GIF\"></div>`,
+    html: `<div class="map-point${selectedClass}" style="--point-fill:${classStyle.fill};--point-stroke:${classStyle.stroke}" title="Haz clic para seleccionar/deseleccionar para pin GIF"></div>`,
     iconSize: [13, 13],
     iconAnchor: [6.5, 6.5],
   });
@@ -379,12 +362,10 @@ function buildPointIcon(clasifica, isSelected = false) {
 
 function getFeatureCenter(feature) {
   const geometry = feature.geometry || {};
-
   if (geometry.type === "Point" && Array.isArray(geometry.coordinates)) {
     const [lng, lat] = geometry.coordinates;
     return L.latLng(lat, lng);
   }
-
   const bounds = L.geoJSON(feature).getBounds();
   if (!bounds.isValid()) return null;
   return bounds.getCenter();
@@ -434,7 +415,6 @@ function renderGifPinsAndLinks() {
     for (const afectKey of pin.afectKeys || []) {
       const feature = afectacionFeatureIndex.get(afectKey);
       if (!feature) continue;
-
       const center = getFeatureCenter(feature);
       if (!center) continue;
 
@@ -473,7 +453,24 @@ function buildLinkedPinsHtml(afectKey) {
   return `<div style="margin-top:0.55rem;"><strong>Pines vinculados:</strong>${description}<div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.35rem;">${buttons}</div></div>`;
 }
 
-// Eliminada función de llenado de formulario de edición de afectación
+function toPopupRows(props, afectKey) {
+  const fields = [
+    ["Tramo", props.tramo],
+    ["Estado", props.nom_ent],
+    ["Municipio", props.nom_mun],
+    ["Clasificacion", props.Clasifica],
+    ["Clave geo", props.cve_geo],
+  ];
+
+  const rows = fields
+    .filter((item) => item[1] !== undefined && item[1] !== null && String(item[1]).trim() !== "")
+    .map((item) => `<tr><th>${item[0]}</th><td>${item[1]}</td></tr>`)
+    .join("");
+
+  const linkedPins = buildLinkedPinsHtml(afectKey);
+
+  return `<table style="border-collapse: collapse; width: 100%;">${rows}</table>${linkedPins}`;
+}
 
 function openPopupForLayer(layer, props) {
   const afectKey = buildAfectacionKey(props);
@@ -506,7 +503,6 @@ function placePendingPinAtLatLng(latlng) {
 
 function handleAfectacionLayerClick(layer, props, event) {
   const afectKey = buildAfectacionKey(props);
-    // Eliminada llamada a llenado de formulario de edición de afectación
 
   if (pendingPinDraft) {
     const latlng =
@@ -517,24 +513,20 @@ function handleAfectacionLayerClick(layer, props, event) {
     if (placePendingPinAtLatLng(latlng)) return;
   }
 
-  // Solo permitir selección si está en modo edición global
   if (pinSelectionMode) {
     toggleAfectacionSelectionForPin(afectKey);
     renderCurrentLayer(lastFilteredFeatures, { skipFit: true });
     setStatus(`Selección de pin actualizada (${selectedAfectacionesForPin.size} afectaciones).`);
-    // Animación de pulso visual en el punto
     if (layer && layer._icon) {
       layer._icon.classList.remove("map-point-pulse");
       void layer._icon.offsetWidth;
       layer._icon.classList.add("map-point-pulse");
       setTimeout(() => layer._icon.classList.remove("map-point-pulse"), 600);
     }
-    // Feedback visual inmediato
     flashEditorFeedback(isAfectacionSelectedForPin(afectKey) ? "Afectación seleccionada para pin." : "Afectación deseleccionada.", "ok");
     return;
   }
 
-  // Si no está en modo edición, solo abrir popup informativo
   openPopupForLayer(layer, props);
 }
 
@@ -544,18 +536,14 @@ function attachAfectacionLayerEvents(layer, props) {
   });
 }
 
-// Eliminada función de eventos de edición de afectación
-
 function setupPinEditorEvents() {
   if (!pinAfectacionesSelect || !pinTitleInput || !pinDescriptionInput || !gifUrlInput || !btnPlaceGifPin || !gifEditorCard || !afectEditorCard || !editModeSwitch || !editModeSwitchLabel) {
     return;
   }
 
-  // Switch global de modo edición
   editModeSwitch.addEventListener("change", () => {
     pinSelectionMode = editModeSwitch.checked;
     updatePinSelectionUi();
-    // Mostrar/ocultar paneles de edición
     if (pinSelectionMode) {
       gifEditorCard.style.display = "block";
       afectEditorCard.style.display = "block";
@@ -580,7 +568,6 @@ function setupPinEditorEvents() {
     }
   });
 
-  // Inicializar visibilidad según estado inicial
   if (!pinSelectionMode) {
     gifEditorCard.style.display = "none";
     afectEditorCard.style.display = "none";
@@ -606,12 +593,7 @@ function setupPinEditorEvents() {
       return;
     }
 
-    pendingPinDraft = {
-      gifUrl,
-      title,
-      description,
-      afectKeys,
-    };
+    pendingPinDraft = { gifUrl, title, description, afectKeys };
 
     setStatus("Haz clic en el mapa para colocar el pin GIF.");
     showEditorFeedback("Listo: haz clic en el mapa para colocar el pin.", "ok");
@@ -628,13 +610,10 @@ function setupPinEditorEvents() {
   }
 
   map.on("click", (event) => {
-    // Solo en modo edición se puede colocar pin
     if (!pinSelectionMode) return;
     if (pendingPinDraft) {
       placePendingPinAtLatLng(event.latlng);
-      return;
     }
-    // Si no hay borrador, no hacer nada (solo puntos manejan selección)
   });
 }
 
@@ -643,7 +622,6 @@ function openGifModal(url, props) {
     window.open(url, "_blank", "noopener,noreferrer");
     return;
   }
-
   afectacionGif.src = url;
   if (gifModalTitle) {
     gifModalTitle.textContent = `GIF - ${props.nom_mun || "Afectacion"}`;
@@ -654,7 +632,6 @@ function openGifModal(url, props) {
 
 function closeGifModal() {
   if (!gifModal || !afectacionGif) return;
-
   gifModal.classList.remove("open");
   gifModal.setAttribute("aria-hidden", "true");
   afectacionGif.removeAttribute("src");
@@ -668,7 +645,6 @@ if (gifModal && gifModalClose) {
       closeGifModal();
     }
   });
-
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && gifModal.classList.contains("open")) {
       closeGifModal();
@@ -711,40 +687,11 @@ function addViaductoMarker() {
     title: "Viaducto",
   }).addTo(map);
 
-  marker.bindPopup(
-    '<strong>Viaducto</strong><br><small>Haz clic en el icono para abrir video.</small>'
-  );
+  marker.bindPopup('<strong>Viaducto</strong><br><small>Haz clic en el icono para abrir video.</small>');
+  marker.bindTooltip("Viaducto", { permanent: true, direction: "top", offset: [0, -18], className: "viaducto-label" });
 
-  marker.bindTooltip("Viaducto", {
-    permanent: true,
-    direction: "top",
-    offset: [0, -18],
-    className: "viaducto-label",
-  });
-
-  marker.on("click", () => {
-    openViaductoVideo();
-  });
+  marker.on("click", () => openViaductoVideo());
 }
-
-let currentLayer = null;
-let troncalLayer = null;
-let municipioBoundaryLayer = null;
-let sourceFeatureCollection = null;
-let selectedMunicipio = null;
-const selectedClasificaciones = new Set();
-let pointAnimationFrameId = null;
-const municipioBoundaryIndex = new Map();
-let municipioSearchTerm = "";
-let allMunicipioCounts = {};
-const CLUSTER_THRESHOLD = 140;
-let lastFilteredFeatures = [];
-
-loadGifPinsFromStorage();
-loadAfectacionMetaFromStorage();
-// Eliminada inicialización de eventos de edición de afectación
-setupPinEditorEvents();
-updatePinSelectionUi();
 
 function stopPointAnimation() {
   if (pointAnimationFrameId) {
@@ -755,35 +702,23 @@ function stopPointAnimation() {
 
 function startPointAnimation(pointLayers) {
   stopPointAnimation();
-
   if (!pointLayers.length) return;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-  const baseRadii = pointLayers.map((layer) => {
-    if (typeof layer.getRadius === "function") {
-      return layer.getRadius();
-    }
-    return 6;
-  });
+  const baseRadii = pointLayers.map((layer) => typeof layer.getRadius === "function" ? layer.getRadius() : 6);
 
   const tick = (time) => {
     const phase = (Math.sin(time / 1100) + 1) / 2;
-
     for (let i = 0; i < pointLayers.length; i += 1) {
       const layer = pointLayers[i];
       if (!map.hasLayer(layer)) continue;
-
       const base = baseRadii[i] || 6;
       const radius = base * (0.995 + phase * 0.045);
       layer.setRadius(radius);
-      layer.setStyle({
-        fillOpacity: 0.88 + phase * 0.05,
-      });
+      layer.setStyle({ fillOpacity: 0.88 + phase * 0.05 });
     }
-
     pointAnimationFrameId = requestAnimationFrame(tick);
   };
-
   pointAnimationFrameId = requestAnimationFrame(tick);
 }
 
@@ -797,23 +732,11 @@ function setMetricValue(el, value) {
 
 function getClassStyle(clasifica) {
   const key = (clasifica || "").toLowerCase();
-
-  if (key.includes("predio") || key.includes("vivienda")) {
-    return { fill: "#ff1a1a", stroke: "#8b0000" };
-  }
-  if (key.includes("infraestructura")) {
-    return { fill: "#ffd400", stroke: "#7d6900" };
-  }
-  if (key.includes("vialidad")) {
-    return { fill: "#8f8f8f", stroke: "#4f4f4f" };
-  }
-  if (key.includes("iglesia")) {
-    return { fill: "#ff8c00", stroke: "#9a4f00" };
-  }
-  if (key.includes("troncoconico")) {
-    return { fill: "#ffffff", stroke: "#111111" };
-  }
-
+  if (key.includes("predio") || key.includes("vivienda")) return { fill: "#ff1a1a", stroke: "#8b0000" };
+  if (key.includes("infraestructura")) return { fill: "#ffd400", stroke: "#7d6900" };
+  if (key.includes("vialidad")) return { fill: "#8f8f8f", stroke: "#4f4f4f" };
+  if (key.includes("iglesia")) return { fill: "#ff8c00", stroke: "#9a4f00" };
+  if (key.includes("troncoconico")) return { fill: "#ffffff", stroke: "#111111" };
   return { fill: "#2a8f7b", stroke: "#14574b" };
 }
 
@@ -823,27 +746,8 @@ function radiusByPondera(value) {
   return Math.max(8, Math.min(16, 6 + num * 1.0));
 }
 
-  const fields = [
-    ["Tramo", props.tramo],
-    ["Estado", props.nom_ent],
-    ["Municipio", props.nom_mun],
-    ["Clasificacion", props.Clasifica],
-    ["Clave geo", props.cve_geo],
-  ];
-
-  const rows = fields
-    .filter((item) => item[1] !== undefined && item[1] !== null && String(item[1]).trim() !== "")
-    .map((item) => `<tr><th>${item[0]}</th><td>${item[1]}</td></tr>`)
-    .join("");
-
-  const linkedPins = buildLinkedPinsHtml(afectKey);
-
-  return `<table style="border-collapse: collapse; width: 100%;">${rows}</table>${linkedPins}`;
-}
-
 function normalizeFeature(rawFeature) {
   const properties = rawFeature.properties || {};
-
   return {
     ...rawFeature,
     properties: {
@@ -863,14 +767,8 @@ function isValidAfectacion(feature) {
   if (!geometry || !geometry.type) return false;
 
   const type = String(geometry.type);
-  if (type === "GeometryCollection") {
-    return Array.isArray(geometry.geometries) && geometry.geometries.length > 0;
-  }
-
-  if (type === "Point") {
-    return Array.isArray(geometry.coordinates) && geometry.coordinates.length >= 2;
-  }
-
+  if (type === "GeometryCollection") return Array.isArray(geometry.geometries) && geometry.geometries.length > 0;
+  if (type === "Point") return Array.isArray(geometry.coordinates) && geometry.coordinates.length >= 2;
   return true;
 }
 
@@ -886,7 +784,6 @@ function escapeHtml(value) {
 function hexToRgba(hexColor, alpha) {
   const hex = (hexColor || "").replace("#", "").trim();
   if (hex.length !== 6) return `rgba(255,255,255,${alpha})`;
-
   const r = parseInt(hex.slice(0, 2), 16);
   const g = parseInt(hex.slice(2, 4), 16);
   const b = parseInt(hex.slice(4, 6), 16);
@@ -905,14 +802,9 @@ function renderChips(container, countsMap, activeSet, options = {}) {
   container.innerHTML = entries
     .map(([label, value]) => {
       const active = activeSet.has(label) ? "active" : "";
-
       if (kind === "clasifica") {
         const classStyle = getClassStyle(label);
-        const chipStyle = `--chip-fill:${classStyle.fill};--chip-stroke:${classStyle.stroke};--chip-bg:${hexToRgba(
-          classStyle.fill,
-          0.18
-        )};`;
-
+        const chipStyle = `--chip-fill:${classStyle.fill};--chip-stroke:${classStyle.stroke};--chip-bg:${hexToRgba(classStyle.fill, 0.18)};`;
         return `
           <button type="button" class="chip chip-clasifica ${active}" data-value="${escapeHtml(label)}" style="${chipStyle}">
             <span class="swatch" aria-hidden="true"></span>
@@ -921,26 +813,22 @@ function renderChips(container, countsMap, activeSet, options = {}) {
           </button>
         `;
       }
-
       return `
         <button type="button" class="chip ${active}" data-value="${escapeHtml(label)}">
           <span>${escapeHtml(label)}</span>
           <span class="count">${value}</span>
         </button>
       `;
-    })
-    .join("");
+    }).join("");
 }
 
 function countByField(features, fieldName) {
   const counts = {};
-
   for (const feature of features) {
     const props = feature.properties || {};
     const value = (props[fieldName] || "Sin dato").trim() || "Sin dato";
     counts[value] = (counts[value] || 0) + 1;
   }
-
   return counts;
 }
 
@@ -951,10 +839,8 @@ function updateSummary(filteredFeatures) {
 function fitMapToFeatures(features) {
   const candidateFeatures = Array.isArray(features) ? features : [];
   if (!candidateFeatures.length) return false;
-
   const bounds = L.geoJSON({ type: "FeatureCollection", features: candidateFeatures }).getBounds();
   if (!bounds.isValid()) return false;
-
   map.fitBounds(bounds.pad(0.1), { animate: true, duration: 0.55 });
   return true;
 }
@@ -966,21 +852,15 @@ function removeMunicipioBoundary() {
 }
 
 function normalizeForLookup(text) {
-  return String(text || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
+  return String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
 async function loadMunicipioBoundariesDataset() {
   try {
     const response = await fetch(MUNICIPIOS_GEOJSON_PATH);
     if (!response.ok) return;
-
     const geojson = await response.json();
     if (!geojson || !Array.isArray(geojson.features)) return;
-
     for (const feature of geojson.features) {
       const props = feature.properties || {};
       const muniName = props.nom_mun || props.NOM_MUN || props.municipio || props.name || "";
@@ -989,36 +869,25 @@ async function loadMunicipioBoundariesDataset() {
       municipioBoundaryIndex.set(key, feature);
     }
   } catch (_err) {
-    // Sin dataset local se mantiene el resto del visor operativo.
+    // Falla silente
   }
 }
 
 function drawMunicipioBoundary(boundaryGeoJSON) {
   removeMunicipioBoundary();
-
   municipioBoundaryLayer = L.geoJSON(boundaryGeoJSON, {
     pane: "boundaryPane",
-    style: {
-      color: "#0052cc",
-      weight: 3,
-      dashArray: "8 6",
-      fillColor: "#3b82f6",
-      fillOpacity: 0.08,
-      interactive: false,
-    },
+    style: { color: "#0052cc", weight: 3, dashArray: "8 6", fillColor: "#3b82f6", fillOpacity: 0.08, interactive: false },
   }).addTo(map);
-
   municipioBoundaryLayer.bringToFront();
 }
 
 function renderMunicipioBoundary(municipio) {
   removeMunicipioBoundary();
   if (!municipio) return;
-
   const key = normalizeForLookup(municipio);
   const boundaryFeature = municipioBoundaryIndex.get(key);
   if (!boundaryFeature) return;
-
   drawMunicipioBoundary(boundaryFeature);
 }
 
@@ -1030,12 +899,10 @@ function getClusterTone(childCount) {
 
 function renderCurrentLayer(filteredFeatures, options = {}) {
   stopPointAnimation();
-
   if (currentLayer) {
     map.removeLayer(currentLayer);
     currentLayer = null;
   }
-
   const pointLayers = [];
   const useCluster = filteredFeatures.length >= CLUSTER_THRESHOLD;
 
@@ -1048,7 +915,6 @@ function renderCurrentLayer(filteredFeatures, options = {}) {
       iconCreateFunction(cluster) {
         const childCount = cluster.getChildCount();
         const tone = getClusterTone(childCount);
-
         return L.divIcon({
           html: `<div><span>${childCount}</span></div>`,
           className: `marker-cluster marker-cluster-custom marker-cluster-${tone}`,
@@ -1056,96 +922,69 @@ function renderCurrentLayer(filteredFeatures, options = {}) {
         });
       },
     });
-
     const nonPointGroup = L.layerGroup();
-
     for (const feature of filteredFeatures) {
       const geometry = feature.geometry || {};
       const props = feature.properties || {};
-
       if (geometry.type === "Point" && Array.isArray(geometry.coordinates)) {
         const [lng, lat] = geometry.coordinates;
         const afectKey = buildAfectacionKey(props);
         const icon = buildPointIcon(props.Clasifica, isAfectacionSelectedForPin(afectKey));
-
-        const marker = L.marker([lat, lng], {
-          pane: "afectacionesPane",
-          icon,
-        });
+        const marker = L.marker([lat, lng], { pane: "afectacionesPane", icon });
         attachAfectacionLayerEvents(marker, props);
         clusterGroup.addLayer(marker);
         continue;
       }
-
       const shape = L.geoJSON(feature, {
         pane: "afectacionesPane",
         style: () => {
           const afectKey = buildAfectacionKey(props);
           const selected = isAfectacionSelectedForPin(afectKey);
           const classStyle = getClassStyle(props.Clasifica);
-          return {
-            color: classStyle.stroke,
-            fillColor: classStyle.fill,
-            weight: selected ? 4 : 2,
-            fillOpacity: selected ? 0.5 : 0.36,
-          };
+          return { color: classStyle.stroke, fillColor: classStyle.fill, weight: selected ? 4 : 2, fillOpacity: selected ? 0.5 : 0.36 };
         },
-        onEachFeature: (_item, layer) => {
-          attachAfectacionLayerEvents(layer, props);
-        },
+        onEachFeature: (_item, layer) => attachAfectacionLayerEvents(layer, props),
       });
       nonPointGroup.addLayer(shape);
     }
-
     currentLayer = L.featureGroup([nonPointGroup, clusterGroup]).addTo(map);
   } else {
-    currentLayer = L.geoJSON(
-      { type: "FeatureCollection", features: filteredFeatures },
-      {
-        pane: "afectacionesPane",
-        pointToLayer: (feature, latlng) => {
-          const props = feature.properties || {};
-          const afectKey = buildAfectacionKey(props);
-          const selected = isAfectacionSelectedForPin(afectKey);
-          const classStyle = getClassStyle(props.Clasifica);
-          const marker = L.circleMarker(latlng, {
-            pane: "afectacionesPane",
-            renderer: svgRenderer,
-            radius: radiusByPondera(props.Pondera),
-            className: "pulse-point",
-            color: classStyle.stroke,
-            weight: selected ? 4 : 2,
-            fillColor: classStyle.fill,
-            fillOpacity: selected ? 1 : 0.92,
-          });
-          pointLayers.push(marker);
-          return marker;
-        },
-        style: (feature) => {
-          const props = feature.properties || {};
-          const afectKey = buildAfectacionKey(props);
-          const selected = isAfectacionSelectedForPin(afectKey);
-          const classStyle = getClassStyle(props.Clasifica);
-          return {
-            color: classStyle.stroke,
-            fillColor: classStyle.fill,
-            weight: selected ? 4 : 2,
-            fillOpacity: selected ? 0.5 : 0.36,
-          };
-        },
-        onEachFeature: (feature, layer) => {
-          const props = feature.properties || {};
-          attachAfectacionLayerEvents(layer, props);
-        },
-      }
-    ).addTo(map);
+    currentLayer = L.geoJSON({ type: "FeatureCollection", features: filteredFeatures }, {
+      pane: "afectacionesPane",
+      pointToLayer: (feature, latlng) => {
+        const props = feature.properties || {};
+        const afectKey = buildAfectacionKey(props);
+        const selected = isAfectacionSelectedForPin(afectKey);
+        const classStyle = getClassStyle(props.Clasifica);
+        const marker = L.circleMarker(latlng, {
+          pane: "afectacionesPane",
+          renderer: svgRenderer,
+          radius: radiusByPondera(props.Pondera),
+          className: "pulse-point",
+          color: classStyle.stroke,
+          weight: selected ? 4 : 2,
+          fillColor: classStyle.fill,
+          fillOpacity: selected ? 1 : 0.92,
+        });
+        pointLayers.push(marker);
+        return marker;
+      },
+      style: (feature) => {
+        const props = feature.properties || {};
+        const afectKey = buildAfectacionKey(props);
+        const selected = isAfectacionSelectedForPin(afectKey);
+        const classStyle = getClassStyle(props.Clasifica);
+        return { color: classStyle.stroke, fillColor: classStyle.fill, weight: selected ? 4 : 2, fillOpacity: selected ? 0.5 : 0.36 };
+      },
+      onEachFeature: (feature, layer) => {
+        const props = feature.properties || {};
+        attachAfectacionLayerEvents(layer, props);
+      },
+    }).addTo(map);
   }
 
   const bounds = L.geoJSON({ type: "FeatureCollection", features: filteredFeatures }).getBounds();
-  if (!options.skipFit && bounds.isValid()) {
-    map.fitBounds(bounds.pad(0.1));
-  }
-
+  if (!options.skipFit && bounds.isValid()) map.fitBounds(bounds.pad(0.1));
   startPointAnimation(pointLayers);
 }
 
@@ -1159,41 +998,27 @@ function applyFilters(options = {}) {
     const muni = (props.nom_mun || "Sin dato").trim() || "Sin dato";
 
     const municipioPass = selectedMunicipio ? muni === selectedMunicipio : true;
-    const clasificaPass = selectedClasificaciones.size
-      ? selectedClasificaciones.has(clasifica)
-      : true;
-
+    const clasificaPass = selectedClasificaciones.size ? selectedClasificaciones.has(clasifica) : true;
     return municipioPass && clasificaPass;
   });
 
   lastFilteredFeatures = filteredFeatures;
-
   renderCurrentLayer(filteredFeatures);
   renderMunicipioBoundary(selectedMunicipio);
   updateSummary(filteredFeatures);
 
-  if (troncalLayer) {
-    troncalLayer.bringToBack();
-  }
-  if (currentLayer) {
-    currentLayer.bringToFront();
-  }
-  if (municipioBoundaryLayer) {
-    municipioBoundaryLayer.bringToFront();
-  }
+  if (troncalLayer) troncalLayer.bringToBack();
+  if (currentLayer) currentLayer.bringToFront();
+  if (municipioBoundaryLayer) municipioBoundaryLayer.bringToFront();
 
   const filtrosActivos = [];
   if (selectedMunicipio) filtrosActivos.push(`municipio: ${selectedMunicipio}`);
-  if (selectedClasificaciones.size) {
-    filtrosActivos.push(`clasificaciones: ${Array.from(selectedClasificaciones).join(", ")}`);
-  }
+  if (selectedClasificaciones.size) filtrosActivos.push(`clasificaciones: ${Array.from(selectedClasificaciones).join(", ")}`);
 
   if (filteredFeatures.length === 0) {
     setStatus("Sin resultados para los filtros seleccionados.");
   } else if (filtrosActivos.length) {
-    setStatus(
-      `Mostrando ${filteredFeatures.length} registros filtrados (${filtrosActivos.join(" | ")}).`
-    );
+    setStatus(`Mostrando ${filteredFeatures.length} registros filtrados (${filtrosActivos.join(" | ")}).`);
   } else {
     setStatus(`Capa cargada correctamente (${filteredFeatures.length} registros).`);
   }
@@ -1232,13 +1057,11 @@ function setupFilterEvents() {
     if (!chip) return;
     const value = chip.dataset.value;
     if (!value) return;
-
     if (selectedClasificaciones.has(value)) {
       selectedClasificaciones.delete(value);
     } else {
       selectedClasificaciones.add(value);
     }
-
     applyFilters();
   });
 
@@ -1247,7 +1070,6 @@ function setupFilterEvents() {
     if (!chip) return;
     const value = chip.dataset.value;
     if (!value) return;
-
     selectedMunicipio = selectedMunicipio === value ? null : value;
     applyFilters();
   });
@@ -1260,10 +1082,20 @@ function setupFilterEvents() {
 
 async function parseKmzToGeoJson(kmzPath) {
   try {
+    if (typeof JSZip === "undefined") {
+      showMapOverlayMessage("Error: JSZip no está disponible. Verifica la carga de dependencias. El mapa base seguirá visible.");
+      console.error("JSZip no está disponible");
+      return { type: "FeatureCollection", features: [] };
+    }
+    if (typeof toGeoJSON === "undefined" || typeof toGeoJSON.kml !== "function") {
+      showMapOverlayMessage("Error: toGeoJSON no está disponible. Verifica la carga de dependencias. El mapa base seguirá visible.");
+      console.error("toGeoJSON no está disponible");
+      return { type: "FeatureCollection", features: [] };
+    }
     const response = await fetch(kmzPath);
     if (!response.ok) {
-      showMapOverlayMessage(`No se pudo leer ${kmzPath}. Estado HTTP ${response.status}`);
-      throw new Error(`No se pudo leer ${kmzPath}. Estado HTTP ${response.status}`);
+      showMapOverlayMessage(`No se pudo leer ${kmzPath}. Estado HTTP ${response.status}. El mapa base seguirá visible.`);
+      return { type: "FeatureCollection", features: [] };
     }
 
     const kmzBuffer = await response.arrayBuffer();
@@ -1271,28 +1103,28 @@ async function parseKmzToGeoJson(kmzPath) {
 
     const kmlName = Object.keys(zip.files).find((name) => name.toLowerCase().endsWith(".kml"));
     if (!kmlName) {
-      showMapOverlayMessage("El KMZ no contiene archivo KML interno.");
-      throw new Error("El KMZ no contiene archivo KML interno.");
+      showMapOverlayMessage("El KMZ no contiene archivo KML interno. El mapa base seguirá visible.");
+      return { type: "FeatureCollection", features: [] };
     }
 
     const kmlText = await zip.file(kmlName).async("string");
     const kmlDoc = new DOMParser().parseFromString(kmlText, "text/xml");
     const parseError = kmlDoc.querySelector("parsererror");
     if (parseError) {
-      showMapOverlayMessage("No fue posible interpretar el KML interno del KMZ.");
-      throw new Error("No fue posible interpretar el KML interno del KMZ.");
+      showMapOverlayMessage("No fue posible interpretar el KML interno del KMZ. El mapa base seguirá visible.");
+      return { type: "FeatureCollection", features: [] };
     }
 
     return toGeoJSON.kml(kmlDoc);
   } catch (err) {
-    showMapOverlayMessage(`Error al cargar KMZ: ${err.message || err}`);
-    throw err;
+    showMapOverlayMessage(`Error al cargar KMZ: ${err.message || err}. El mapa base seguirá visible.`);
+    console.error("Error al cargar KMZ:", err);
+    return { type: "FeatureCollection", features: [] };
   }
 }
 
 async function loadKmzLayer() {
   setStatus("Cargando capa KMZ...");
-
   try {
     const featureCollection = await parseKmzToGeoJson(KMZ_PATH);
     const normalizedFeatures = (featureCollection.features || []).map(normalizeFeature);
@@ -1306,10 +1138,7 @@ async function loadKmzLayer() {
       },
     }));
 
-    sourceFeatureCollection = {
-      type: "FeatureCollection",
-      features: keyedFeatures,
-    };
+    sourceFeatureCollection = { type: "FeatureCollection", features: keyedFeatures };
 
     afectacionCatalog.clear();
     afectacionFeatureIndex.clear();
@@ -1318,10 +1147,7 @@ async function loadKmzLayer() {
       const key = buildAfectacionKey(props);
       afectacionFeatureIndex.set(key, feature);
       if (afectacionCatalog.has(key)) continue;
-      afectacionCatalog.set(key, {
-        label: buildAfectacionLabel(props),
-        props,
-      });
+      afectacionCatalog.set(key, { label: buildAfectacionLabel(props), props });
     }
 
     if (selectedAfectacionKey && !afectacionCatalog.has(selectedAfectacionKey)) {
@@ -1329,7 +1155,6 @@ async function loadKmzLayer() {
     }
 
     refreshPinAfectacionesSelect();
-    // Eliminada llamada a llenado de formulario de edición de afectación
     renderGifPinsAndLinks();
 
     allMunicipioCounts = countByField(sourceFeatureCollection.features, "nom_mun");
@@ -1358,7 +1183,6 @@ async function loadKmzLayer() {
 async function loadTroncalLayer() {
   try {
     if (troncalLayer) return;
-
     const troncalCollection = await parseKmzToGeoJson(TRONCAL_KMZ_PATH);
     if (!troncalCollection.features || !troncalCollection.features.length) {
       setStatus("No se encontraron datos de troncal en el archivo KMZ.");
@@ -1366,29 +1190,6 @@ async function loadTroncalLayer() {
       return;
     }
     troncalLayer = L.geoJSON(troncalCollection, {
-      // Muestra un mensaje superpuesto en el mapa para errores críticos
-      function showMapOverlayMessage(msg) {
-        let overlay = document.getElementById("map-overlay-message");
-        if (!overlay) {
-          overlay = document.createElement("div");
-          overlay.id = "map-overlay-message";
-          overlay.style.position = "absolute";
-          overlay.style.top = "50%";
-          overlay.style.left = "50%";
-          overlay.style.transform = "translate(-50%, -50%)";
-          overlay.style.background = "rgba(255,255,255,0.95)";
-          overlay.style.color = "#b00";
-          overlay.style.fontSize = "1.3rem";
-          overlay.style.fontWeight = "bold";
-          overlay.style.padding = "2rem 2.5rem";
-          overlay.style.borderRadius = "1.2rem";
-          overlay.style.boxShadow = "0 2px 16px #0002";
-          overlay.style.zIndex = 9999;
-          overlay.style.textAlign = "center";
-          document.body.appendChild(overlay);
-        }
-        overlay.textContent = msg;
-      }
       pane: "troncalPane",
       interactive: false,
       bubblingMouseEvents: false,
@@ -1414,13 +1215,13 @@ async function loadTroncalLayer() {
     }).addTo(map);
 
     troncalLayer.bringToBack();
-
     layerControl.addOverlay(troncalLayer, "Trazo troncal");
   } catch (err) {
     console.error("No se pudo cargar TRONCAL.kmz", err);
   }
 }
 
+// Listeners de los botones principales
 btnReload.addEventListener("click", loadKmzLayer);
 btnClearFilters.addEventListener("click", () => {
   selectedMunicipio = null;
@@ -1440,6 +1241,11 @@ btnFit.addEventListener("click", () => {
   }
 });
 
+// Inicialización de la aplicación
+loadGifPinsFromStorage();
+loadAfectacionMetaFromStorage();
+setupPinEditorEvents();
+updatePinSelectionUi();
 setupFilterEvents();
 addViaductoMarker();
 loadMunicipioBoundariesDataset();
