@@ -1,3 +1,99 @@
+// --- Galería de GIFs locales ---
+const LOCAL_GIFS = [
+  "gifs/G 2,3,4.gif",
+  "gifs/G1.gif",
+  "gifs/G5.gif",
+  "gifs/G6.gif",
+  "gifs/G9.gif",
+  "gifs/G10.gif",
+  "gifs/G11.gif",
+  "gifs/G12.gif",
+  "gifs/G13.gif",
+  "gifs/G14.gif",
+  "gifs/G15.gif",
+  "gifs/G16.gif",
+  "gifs/G18.gif",
+  "gifs/G19.gif",
+  "gifs/G20.gif",
+  "gifs/G21.gif",
+  "gifs/G22.gif",
+  "gifs/G23.gif",
+  "gifs/G24.gif",
+  "gifs/G25.gif",
+  "gifs/G26.gif",
+  "gifs/G27.gif",
+  "gifs/G28.gif",
+  "gifs/G29.gif",
+  "gifs/G30.gif",
+  "gifs/G31.gif",
+  "gifs/G32.gif",
+  "gifs/G33.gif",
+  "gifs/G34.gif",
+  "gifs/G35.gif",
+  "gifs/G36.gif",
+  "gifs/G37.gif",
+  "gifs/G38.gif",
+  "gifs/G39.gif",
+  "gifs/G40.gif",
+  "gifs/G41.gif",
+  "gifs/G42.gif",
+  "gifs/G43.gif",
+  "gifs/G44.gif",
+  "gifs/G45.gif",
+  "gifs/G46.gif",
+  "gifs/G47.gif",
+  "gifs/G48.gif",
+  "gifs/G49.gif",
+  "gifs/G50.gif",
+  "gifs/G51.gif",
+  "gifs/G52.gif",
+  "gifs/G52(1).gif",
+  "gifs/G53.gif",
+  "gifs/G54.gif",
+  "gifs/G55.gif",
+  "gifs/G56.gif",
+  "gifs/G57.gif",
+  "gifs/G58.gif",
+  "gifs/G59.gif",
+  "gifs/G60.gif",
+  "gifs/G61.gif",
+  "gifs/G62.gif",
+  "gifs/G63.gif",
+  "gifs/G64.gif",
+  "gifs/G65.gif",
+  "gifs/G66.gif",
+  "gifs/G67.gif",
+];
+
+function renderLocalGifGallery() {
+  const gallery = document.getElementById("local-gif-gallery");
+  if (!gallery) return;
+  gallery.innerHTML = "";
+  LOCAL_GIFS.forEach((gifPath) => {
+    const img = document.createElement("img");
+    img.src = gifPath;
+    img.alt = gifPath.split("/").pop();
+    img.title = gifPath.split("/").pop();
+    img.style.width = "64px";
+    img.style.height = "64px";
+    img.style.objectFit = "cover";
+    img.style.cursor = "pointer";
+    img.style.border = "2px solid #e0e0e0";
+    img.style.borderRadius = "8px";
+    img.addEventListener("click", () => {
+      if (gifUrlInput) gifUrlInput.value = gifPath;
+      img.style.border = "2px solid #0c5f73";
+      // Quitar selección de otros
+      Array.from(gallery.children).forEach((el) => {
+        if (el !== img) el.style.border = "2px solid #e0e0e0";
+      });
+    });
+    gallery.appendChild(img);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", renderLocalGifGallery);
+// Si la interfaz se genera dinámicamente, también puedes llamar a renderLocalGifGallery() después de cargar el DOM.
 const KMZ_PATH = "data/afectaciones_ba_170426.kmz";
 const TRONCAL_KMZ_PATH = "data/TRONCAL.kmz?v=20260429d";
 const MUNICIPIOS_GEOJSON_PATH = "data/municipios_jalisco.geojson";
@@ -586,7 +682,12 @@ function setupPinEditorEvents() {
         return;
       }
       
-      const gifUrl = gifUrlInput ? String(gifUrlInput.value || "").trim() : "";
+      let gifUrl = gifUrlInput ? String(gifUrlInput.value || "").trim() : "";
+      // Conversión automática de enlaces de Google Drive a formato directo
+      const driveMatch = gifUrl.match(/https?:\/\/drive\.google\.com\/file\/d\/([\w-]+)\//);
+      if (driveMatch) {
+        gifUrl = `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+      }
       const title = pinTitleInput ? String(pinTitleInput.value || "").trim() : "";
       const description = pinDescriptionInput ? String(pinDescriptionInput.value || "").trim() : "";
       const afectKeys = Array.from(selectedAfectacionesForPin);

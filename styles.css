@@ -564,17 +564,27 @@ button:disabled {
   background: #0a1d27;
 }
 
+
 .gif-modal-body {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 220px;
+  background: #f8fafb;
+  border-radius: 12px;
 }
 
 #afectacion-gif {
   max-width: 100%;
   max-height: min(74vh, 540px);
   object-fit: contain;
+  background: #fff;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px #0002;
+  min-width: 80px;
+  min-height: 80px;
+  display: block;
 }
 
 #viaducto-video {
