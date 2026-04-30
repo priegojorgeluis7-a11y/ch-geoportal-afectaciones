@@ -1,5 +1,5 @@
-// --- IMPORTACIONES DE FIREBASE ---
-import { initializeApp } from "firebase/app";
+// --- IMPORTACIONES DE FIREBASE (CDN para compatibilidad con GitHub Pages) ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
 import { 
   getFirestore, 
   collection, 
@@ -7,9 +7,8 @@ import {
   onSnapshot, 
   deleteDoc, 
   doc, 
-  query, 
-  orderBy 
-} from "firebase/firestore";
+  query 
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
 // --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
@@ -26,7 +25,13 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const pinsCollection = collection(db, "pins");
 
-// --- GALERÍA DE GIFS LOCALES (Se mantiene local) ---
+// --- RUTAS DE DATOS ---
+const KMZ_PATH = "data/afectaciones_ba_170426.kmz";
+const TRONCAL_KMZ_PATH = "data/TRONCAL.kmz?v=20260429d";
+const MUNICIPIOS_GEOJSON_PATH = "data/municipios_jalisco.geojson";
+const VIADUCTO_COORDS = [20.6525, -103.347306];
+
+// --- GALERÍA DE GIFS LOCALES ---
 const LOCAL_GIFS = [
   "gifs/G_2_3_4.gif", "gifs/G1.gif", "gifs/G5.gif", "gifs/G6.gif", "gifs/G9.gif",
   "gifs/G10.gif", "gifs/G11.gif", "gifs/G12.gif", "gifs/G13.gif", "gifs/G14.gif",
@@ -43,343 +48,149 @@ const LOCAL_GIFS = [
   "gifs/G65.gif", "gifs/G66.gif", "gifs/G67.gif",
 ];
 
-const UPLOADED_GIFS_KEY = "uploaded-gifs-v1";
-
 // --- ELEMENTOS DEL DOM ---
 const statusText = document.getElementById("status-text");
 const metricTotal = document.getElementById("metric-total");
 const clasificaList = document.getElementById("clasifica-list");
 const muniList = document.getElementById("muni-list");
 const muniSearch = document.getElementById("muni-search");
-const btnReload = document.getElementById("btn-reload");
-const btnClearFilters = document.getElementById("btn-clear-filters");
-const btnFit = document.getElementById("btn-fit");
-const btnPanelToggle = document.getElementById("btn-panel-toggle");
-const filterPanel = document.getElementById("filter-panel");
+const gifUrlInput = document.getElementById("gif-url");
 const pinSelectedCount = document.getElementById("pin-selected-count");
 const pinTitleInput = document.getElementById("pin-title");
 const pinDescriptionInput = document.getElementById("pin-description");
-const gifUrlInput = document.getElementById("gif-url");
 const btnPlaceGifPin = document.getElementById("btn-place-gif-pin");
-const btnClearPinSelection = document.getElementById("btn-clear-pin-selection");
-const btnClearAllPins = document.getElementById("btn-clear-all-pins");
-const toggleGifPinsInput = document.getElementById("toggle-gif-pins");
-const editorFeedback = document.getElementById("editor-feedback");
-const gifEditorCard = document.querySelector(".editor-gif-card");
 const editModeSwitch = document.getElementById("edit-mode-switch");
-const editModeSwitchLabel = document.getElementById("edit-mode-switch-label");
-const saveToast = document.getElementById("save-toast");
-const videoModal = document.getElementById("video-modal");
-const videoModalClose = document.getElementById("video-modal-close");
-const viaductoVideo = document.getElementById("viaducto-video");
+const gifEditorCard = document.querySelector(".editor-gif-card");
 const gifModal = document.getElementById("gif-modal");
-const gifModalClose = document.getElementById("gif-modal-close");
 const afectacionGif = document.getElementById("afectacion-gif");
 const gifModalTitle = document.getElementById("gif-modal-title");
 
 // --- VARIABLES GLOBALES ---
-const AFECT_META_STORAGE_KEY = "afect-meta-v1";
-const afectacionCatalog = new Map();
 const afectacionFeatureIndex = new Map();
 let selectedAfectacionesForPin = new Set();
 let pinSelectionMode = false;
-let gifPins = []; // Se llenará desde Firestore
+let gifPins = []; 
 let pendingPinDraft = null;
 let gifPinLayer = L.layerGroup();
 let gifPinLinksLayer = L.layerGroup();
-let showGifPins = true;
-
-let currentLayer = null;
-let troncalLayer = null;
-let municipioBoundaryLayer = null;
 let sourceFeatureCollection = null;
+let currentLayer = null;
 let selectedMunicipio = null;
 const selectedClasificaciones = new Set();
-let pointAnimationFrameId = null;
-const municipioBoundaryIndex = new Map();
-let municipioSearchTerm = "";
 let allMunicipioCounts = {};
-const CLUSTER_THRESHOLD = 140;
-let lastFilteredFeatures = [];
-let layerControl;
 
-// --- CONFIGURACIÓN BASE LEAFLET ---
-const map = L.map("map", { zoomControl: true }).setView([20.67, -103.35], 8);
+// --- INICIALIZACIÓN DEL MAPA ---
+const map = L.map("map").setView([20.67, -103.35], 8);
 
-// Capas y Panes
-map.createPane("troncalPane");
-map.getPane("troncalPane").style.zIndex = 350;
-map.getPane("troncalPane").style.pointerEvents = "none";
-map.createPane("afectacionesPane");
-map.getPane("afectacionesPane").style.zIndex = 420;
-map.createPane("boundaryPane");
-map.getPane("boundaryPane").style.zIndex = 430;
-map.createPane("gifLinksPane");
-map.getPane("gifLinksPane").style.zIndex = 395;
-map.createPane("poiPane");
-map.getPane("poiPane").style.zIndex = 405;
+map.createPane("troncalPane").style.zIndex = 350;
+map.createPane("afectacionesPane").style.zIndex = 420;
+map.createPane("gifLinksPane").style.zIndex = 395;
+map.createPane("poiPane").style.zIndex = 405;
 
-const svgRenderer = L.svg({ padding: 0.5 });
-const baseOSM = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OSM" }).addTo(map);
-const baseImagery = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Esri" });
-const baseLayers = { "Calles": baseOSM, "Satélite": baseImagery };
+const baseOSM = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+const baseImagery = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}");
+L.control.layers({ "Calles": baseOSM, "Satélite": baseImagery }).addTo(map);
 
-layerControl = L.control.layers(baseLayers, {}, { collapsed: true }).addTo(map);
 gifPinLayer.addTo(map);
 gifPinLinksLayer.addTo(map);
 
-// --- LÓGICA DE FIRESTORE (Sustituye LocalStorage) ---
+// --- LÓGICA FIRESTORE (Nube) ---
 
 function subscribeToCloudPins() {
-  const q = query(pinsCollection);
-  onSnapshot(q, (snapshot) => {
+  onSnapshot(query(pinsCollection), (snapshot) => {
     gifPins = [];
-    snapshot.forEach((doc) => {
-      gifPins.push({ firestoreId: doc.id, ...doc.data() });
-    });
+    snapshot.forEach((doc) => gifPins.push({ firestoreId: doc.id, ...doc.data() }));
     renderGifPinsAndLinks();
-    updateSummary(lastFilteredFeatures);
   });
 }
 
 async function savePinToCloud(pinData) {
   try {
     await addDoc(pinsCollection, pinData);
-    showEditorFeedback("Pin guardado en la nube.", "ok");
-  } catch (err) {
-    console.error(err);
-    showEditorFeedback("Error al guardar en nube.", "warn");
-  }
-}
-
-async function deletePinFromCloud(id) {
-  try {
-    await deleteDoc(doc(db, "pins", id));
-    showEditorFeedback("Pin eliminado.", "warn");
+    setStatus("Pin guardado en la nube.");
   } catch (err) { console.error(err); }
 }
 
-// --- FUNCIONES DE GALERÍA DE GIFS (LocalStorage) ---
-
-function loadUploadedGifs() {
-  try {
-    const raw = localStorage.getItem(UPLOADED_GIFS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+async function deletePinFromCloud(id) {
+  try { await deleteDoc(doc(db, "pins", id)); } catch (err) { console.error(err); }
 }
 
-function saveUploadedGifs(list) {
-  localStorage.setItem(UPLOADED_GIFS_KEY, JSON.stringify(list));
-}
-
-function addGifThumbToGallery(gallery, gifData, isUploaded = false) {
-  const wrap = document.createElement("div");
-  wrap.className = "gif-thumb-wrap";
-  const img = document.createElement("img");
-  img.src = gifData.url;
-  img.className = "gif-thumb-img";
-  img.style.cssText = "width:64px;height:64px;object-fit:cover;cursor:pointer;border:2px solid #e0e0e0;border-radius:8px;";
-  
-  img.addEventListener("click", () => {
-    if (gifUrlInput) gifUrlInput.value = gifData.url;
-    gallery.querySelectorAll("img").forEach(el => el.style.border = "2px solid #e0e0e0");
-    img.style.border = "2px solid #0c5f73";
-  });
-
-  wrap.appendChild(img);
-  if (isUploaded) {
-    const del = document.createElement("button");
-    del.textContent = "✕";
-    del.className = "btn-del-gif";
-    del.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const list = loadUploadedGifs().filter(g => g.name !== gifData.name);
-      saveUploadedGifs(list);
-      wrap.remove();
-    });
-    wrap.appendChild(del);
-  }
-  gallery.appendChild(wrap);
-}
-
-function renderLocalGifGallery() {
-  const gallery = document.getElementById("local-gif-gallery");
-  if (!gallery) return;
-  gallery.innerHTML = "";
-  LOCAL_GIFS.forEach(path => addGifThumbToGallery(gallery, { url: path, name: path.split("/").pop() }));
-  loadUploadedGifs().forEach(data => addGifThumbToGallery(gallery, data, true));
-}
-
-// --- LÓGICA DE MAPA Y FILTROS ---
-
-function buildAfectacionKey(props) {
-  return props._afect_key || props._afect_uid || `cve:${props.cve_geo}`;
-}
+// --- LÓGICA DE PINES Y MAPA ---
 
 function renderGifPinsAndLinks() {
   gifPinLayer.clearLayers();
   gifPinLinksLayer.clearLayers();
-  if (!showGifPins) return;
-
-  const isSatellite = map.hasLayer(baseImagery);
-  const linkColor = isSatellite ? "#ffffff" : "#0c5f73";
+  const linkColor = map.hasLayer(baseImagery) ? "#ffffff" : "#0c5f73";
 
   gifPins.forEach(pin => {
     const marker = L.marker([pin.lat, pin.lng], {
       pane: "poiPane",
-      icon: L.divIcon({
-        className: "gif-pin-wrap",
-        html: `<div class="gif-pin-icon">GIF</div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
-      })
+      icon: L.divIcon({ className: "gif-pin-wrap", html: `<div class="gif-pin-icon">GIF</div>`, iconSize: [30, 30] })
     });
 
-    marker.on("click", () => openGifModal(pin.gifUrl, { nom_mun: pin.title }));
+    marker.on("click", () => openGifModal(pin.gifUrl, pin.title));
     marker.on("contextmenu", (e) => {
-      L.DomEvent.stopPropagation(e);
-      if (pinSelectionMode && confirm("¿Borrar este pin de la nube?")) {
-        deletePinFromCloud(pin.firestoreId);
-      }
+      if (pinSelectionMode && confirm("¿Borrar pin de la nube?")) deletePinFromCloud(pin.firestoreId);
     });
-
     marker.addTo(gifPinLayer);
 
     (pin.afectKeys || []).forEach(key => {
       const feat = afectacionFeatureIndex.get(key);
       if (feat) {
         const center = getFeatureCenter(feat);
-        if (center) {
-          L.polyline([[pin.lat, pin.lng], [center.lat, center.lng]], {
-            pane: "gifLinksPane",
-            color: linkColor,
-            weight: 2,
-            opacity: 0.5,
-            dashArray: "5, 5"
-          }).addTo(gifPinLinksLayer);
-        }
+        if (center) L.polyline([[pin.lat, pin.lng], [center.lat, center.lng]], { pane: "gifLinksPane", color: linkColor, weight: 2, dashArray: "5, 5" }).addTo(gifPinLinksLayer);
       }
     });
   });
 }
 
-function getFeatureCenter(feature) {
-  if (feature.geometry.type === "Point") {
-    const [lng, lat] = feature.geometry.coordinates;
-    return L.latLng(lat, lng);
-  }
-  const bounds = L.geoJSON(feature).getBounds();
-  return bounds.isValid() ? bounds.getCenter() : null;
-}
-
 async function placePendingPinAtLatLng(latlng) {
-  if (!pendingPinDraft || !latlng) return;
-
-  const newPin = {
-    lat: latlng.lat,
-    lng: latlng.lng,
-    gifUrl: pendingPinDraft.gifUrl,
-    title: pendingPinDraft.title,
-    description: pendingPinDraft.description,
-    afectKeys: pendingPinDraft.afectKeys,
-    createdAt: Date.now()
-  };
-
-  await savePinToCloud(newPin);
+  if (!pendingPinDraft) return;
+  await savePinToCloud({ ...pendingPinDraft, lat: latlng.lat, lng: latlng.lng, createdAt: Date.now() });
   pendingPinDraft = null;
   selectedAfectacionesForPin.clear();
   updatePinSelectionUi();
-  renderCurrentLayer(lastFilteredFeatures, { skipFit: true });
+  renderCurrentLayer(sourceFeatureCollection.features, { skipFit: true });
 }
 
 function handleAfectacionLayerClick(layer, props, event) {
-  const key = buildAfectacionKey(props);
-  if (pendingPinDraft) {
-    placePendingPinAtLatLng(event.latlng || layer.getLatLng());
-    return;
-  }
+  const key = props._afect_key;
+  if (pendingPinDraft) { placePendingPinAtLatLng(event.latlng); return; }
   if (pinSelectionMode) {
-    if (selectedAfectacionesForPin.has(key)) selectedAfectacionesForPin.delete(key);
-    else selectedAfectacionesForPin.add(key);
+    selectedAfectacionesForPin.has(key) ? selectedAfectacionesForPin.delete(key) : selectedAfectacionesForPin.add(key);
     updatePinSelectionUi();
-    renderCurrentLayer(lastFilteredFeatures, { skipFit: true });
+    renderCurrentLayer(sourceFeatureCollection.features, { skipFit: true });
     return;
   }
-  // Popup normal
-  const rows = Object.entries(props)
-    .filter(([k, v]) => !k.startsWith("_") && v)
-    .map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("");
   
   const linked = gifPins.filter(p => p.afectKeys?.includes(key));
-  const buttons = linked.map(p => `<button class="btn-open-gif" data-url="${p.gifUrl}">${p.title || 'Ver GIF'}</button>`).join("");
-
-  layer.bindPopup(`<table class="pop-table">${rows}</table>${buttons}`).openPopup();
-}
-
-// --- EVENTOS UI ---
-
-function setupPinEditorEvents() {
-  editModeSwitch?.addEventListener("change", () => {
-    pinSelectionMode = editModeSwitch.checked;
-    gifEditorCard.style.display = pinSelectionMode ? "block" : "none";
-    if (!pinSelectionMode) selectedAfectacionesForPin.clear();
-    renderGifPinsAndLinks();
-  });
-
-  btnPlaceGifPin?.addEventListener("click", () => {
-    const url = gifUrlInput.value;
-    if (!url || selectedAfectacionesForPin.size === 0) {
-      showEditorFeedback("Selecciona GIF y al menos una afectación", "warn");
-      return;
-    }
-    pendingPinDraft = {
-      gifUrl: url,
-      title: pinTitleInput.value,
-      description: pinDescriptionInput.value,
-      afectKeys: Array.from(selectedAfectacionesForPin)
-    };
-    showEditorFeedback("Haz clic en el mapa para colocar el pin", "ok");
-  });
-
-  map.on("click", (e) => {
-    if (pinSelectionMode && pendingPinDraft) placePendingPinAtLatLng(e.latlng);
-  });
-}
-
-function updatePinSelectionUi() {
-  if (pinSelectedCount) pinSelectedCount.textContent = `Afectaciones seleccionadas: ${selectedAfectacionesForPin.size}`;
-}
-
-function showEditorFeedback(msg, tone) {
-  if (!editorFeedback) return;
-  editorFeedback.textContent = msg;
-  editorFeedback.className = `editor-feedback ${tone}`;
-  if (saveToast && tone === "ok") {
-    saveToast.textContent = msg;
-    saveToast.classList.add("show");
-    setTimeout(() => saveToast.classList.remove("show"), 2000);
-  }
+  const buttons = linked.map(p => `<button class="btn-open-gif" onclick="window.openGifManual('${p.gifUrl}', '${p.title}')">Ver GIF: ${p.title}</button>`).join("");
+  layer.bindPopup(`<strong>${props.nom_mun}</strong><br>${props.Clasifica}<br>${buttons}`).openPopup();
 }
 
 // --- UTILIDADES ---
 
-function getClassStyle(clasifica) {
-  const c = (clasifica || "").toLowerCase();
-  if (c.includes("vivienda")) return { fill: "#ff1a1a", stroke: "#8b0000" };
-  if (c.includes("infraestructura")) return { fill: "#ffd400", stroke: "#7d6900" };
-  return { fill: "#2a8f7b", stroke: "#14574b" };
+function getFeatureCenter(f) {
+  if (f.geometry.type === "Point") return L.latLng(f.geometry.coordinates[1], f.geometry.coordinates[0]);
+  const bounds = L.geoJSON(f).getBounds();
+  return bounds.isValid() ? bounds.getCenter() : null;
 }
 
-function normalizeFeature(f) {
-  const p = f.properties;
-  return { ...f, properties: { ...p, 
-    nom_mun: p.nom_mun || "Sin dato", 
-    Clasifica: p.Clasifica || "Sin clasificar",
-    cve_geo: p.cve_geo || "" 
-  }};
+function setStatus(msg) { statusText.textContent = msg; }
+
+function updatePinSelectionUi() { pinSelectedCount.textContent = `Afectaciones seleccionadas: ${selectedAfectacionesForPin.size}`; }
+
+window.openGifManual = (url, title) => openGifModal(url, title);
+
+function openGifModal(url, title) {
+  afectacionGif.src = url;
+  gifModalTitle.textContent = title || "Detalle";
+  gifModal.classList.add("open");
 }
 
-// --- CARGA DE DATOS (KMZ) ---
+document.getElementById("gif-modal-close").onclick = () => gifModal.classList.remove("open");
+
+// --- CARGA DE KMZ ---
 
 async function parseKmz(path) {
   const resp = await fetch(path);
@@ -391,44 +202,33 @@ async function parseKmz(path) {
 }
 
 async function loadKmzLayer() {
-  statusText.textContent = "Cargando KMZ...";
+  setStatus("Cargando KMZ...");
   try {
     const geo = await parseKmz(KMZ_PATH);
-    const valid = geo.features.map(normalizeFeature).map((f, i) => {
-      f.properties._afect_uid = `id-${i}`;
+    sourceFeatureCollection = { type: "FeatureCollection", features: geo.features.map((f, i) => {
       f.properties._afect_key = `key-${i}`;
+      f.properties.nom_mun = f.properties.nom_mun || "Sin dato";
+      f.properties.Clasifica = f.properties.Clasifica || "Sin clasificar";
+      afectacionFeatureIndex.set(f.properties._afect_key, f);
       return f;
-    });
-    sourceFeatureCollection = { type: "FeatureCollection", features: valid };
-    
-    afectacionFeatureIndex.clear();
-    valid.forEach(f => afectacionFeatureIndex.set(buildAfectacionKey(f.properties), f));
-    
-    allMunicipioCounts = countByField(valid, "nom_mun");
+    })};
+    allMunicipioCounts = countByField(sourceFeatureCollection.features, "nom_mun");
     applyFilters();
-  } catch (err) { statusText.textContent = "Error al cargar datos."; }
+  } catch (err) { setStatus("Error al cargar KMZ."); }
 }
 
 function countByField(arr, field) {
-  return arr.reduce((acc, f) => {
-    const val = f.properties[field];
-    acc[val] = (acc[val] || 0) + 1;
-    return acc;
-  }, {});
+  return arr.reduce((acc, f) => { acc[f.properties[field]] = (acc[f.properties[field]] || 0) + 1; return acc; }, {});
 }
 
 function applyFilters() {
   const filtered = sourceFeatureCollection.features.filter(f => {
-    const p = f.properties;
-    const mMatch = !selectedMunicipio || p.nom_mun === selectedMunicipio;
-    const cMatch = selectedClasificaciones.size === 0 || selectedClasificaciones.has(p.Clasifica);
+    const mMatch = !selectedMunicipio || f.properties.nom_mun === selectedMunicipio;
+    const cMatch = selectedClasificaciones.size === 0 || selectedClasificaciones.has(f.properties.Clasifica);
     return mMatch && cMatch;
   });
-  lastFilteredFeatures = filtered;
   renderCurrentLayer(filtered);
-  updateSummary(filtered);
-  renderChips(clasificaList, countByField(sourceFeatureCollection.features, "Clasifica"), selectedClasificaciones, "clasifica");
-  renderChips(muniList, allMunicipioCounts, new Set([selectedMunicipio]), "muni");
+  metricTotal.textContent = filtered.length;
 }
 
 function renderCurrentLayer(features, opts = {}) {
@@ -436,56 +236,48 @@ function renderCurrentLayer(features, opts = {}) {
   currentLayer = L.geoJSON(features, {
     pane: "afectacionesPane",
     pointToLayer: (f, latlng) => {
-      const style = getClassStyle(f.properties.Clasifica);
-      const isSel = selectedAfectacionesForPin.has(buildAfectacionKey(f.properties));
-      return L.circleMarker(latlng, {
-        radius: 8,
-        fillColor: style.fill,
-        color: style.stroke,
-        weight: isSel ? 4 : 1,
-        fillOpacity: 0.8
-      });
+      const isSel = selectedAfectacionesForPin.has(f.properties._afect_key);
+      return L.circleMarker(latlng, { radius: 8, fillColor: "#2a8f7b", color: "#14574b", weight: isSel ? 5 : 1, fillOpacity: 0.8 });
     },
     onEachFeature: (f, l) => l.on("click", (e) => handleAfectacionLayerClick(l, f.properties, e))
   }).addTo(map);
-  if (!opts.skipFit) map.fitBounds(currentLayer.getBounds().pad(0.1));
+  if (!opts.skipFit && features.length > 0) map.fitBounds(currentLayer.getBounds());
 }
 
-function renderChips(container, counts, activeSet, type) {
-  if (!container) return;
-  container.innerHTML = Object.entries(counts).map(([label, count]) => {
-    const active = activeSet.has(label) ? "active" : "";
-    return `<button class="chip ${active}" data-val="${label}">${label} (${count})</button>`;
-  }).join("");
-  
-  container.querySelectorAll(".chip").forEach(btn => {
-    btn.onclick = () => {
-      const val = btn.dataset.val;
-      if (type === "muni") selectedMunicipio = selectedMunicipio === val ? null : val;
-      else activeSet.has(val) ? activeSet.delete(val) : activeSet.add(val);
-      applyFilters();
+// --- EVENTOS ---
+
+editModeSwitch.onchange = () => {
+  pinSelectionMode = editModeSwitch.checked;
+  gifEditorCard.style.display = pinSelectionMode ? "block" : "none";
+  if (!pinSelectionMode) selectedAfectacionesForPin.clear();
+};
+
+btnPlaceGifPin.onclick = () => {
+  if (!gifUrlInput.value || selectedAfectacionesForPin.size === 0) return setStatus("Falta GIF o selección.");
+  pendingPinDraft = { gifUrl: gifUrlInput.value, title: pinTitleInput.value, description: pinDescriptionInput.value, afectKeys: Array.from(selectedAfectacionesForPin) };
+  setStatus("Haz clic en el mapa para colocar el pin.");
+};
+
+map.on("click", (e) => { if (pinSelectionMode && pendingPinDraft) placePendingPinAtLatLng(e.latlng); });
+
+// --- GALERÍA ---
+function renderLocalGifGallery() {
+  const gallery = document.getElementById("local-gif-gallery");
+  LOCAL_GIFS.forEach(path => {
+    const img = document.createElement("img");
+    img.src = path;
+    img.className = "gif-thumb-img";
+    img.style.cssText = "width:64px;height:64px;margin:2px;cursor:pointer;border:2px solid #ddd;";
+    img.onclick = () => { 
+      gifUrlInput.value = path; 
+      gallery.querySelectorAll("img").forEach(i => i.style.borderColor = "#ddd");
+      img.style.borderColor = "#0c5f73";
     };
+    gallery.appendChild(img);
   });
 }
 
-function updateSummary(feat) {
-  metricTotal.textContent = feat.length;
-  statusText.textContent = "Datos actualizados.";
-}
-
-// --- MODALES ---
-
-function openGifModal(url, props) {
-  if (!gifModal || !afectacionGif) return;
-  afectacionGif.src = url;
-  gifModalTitle.textContent = props.nom_mun || "Detalle";
-  gifModal.classList.add("open");
-}
-
-gifModalClose?.addEventListener("click", () => gifModal.classList.remove("open"));
-
-// --- INICIALIZACIÓN ---
+// --- INICIO ---
 renderLocalGifGallery();
-setupPinEditorEvents();
 subscribeToCloudPins();
 loadKmzLayer();
