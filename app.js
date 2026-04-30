@@ -220,6 +220,7 @@ const gifUrlInput = document.getElementById("gif-url");
 const btnPlaceGifPin = document.getElementById("btn-place-gif-pin");
 const btnClearPinSelection = document.getElementById("btn-clear-pin-selection");
 const btnClearAllPins = document.getElementById("btn-clear-all-pins");
+const toggleGifPinsInput = document.getElementById("toggle-gif-pins");
 const editorFeedback = document.getElementById("editor-feedback");
 const gifEditorCard = document.querySelector(".editor-gif-card");
 const editModeSwitch = document.getElementById("edit-mode-switch");
@@ -254,6 +255,7 @@ let gifPins = [];
 let pendingPinDraft = null;
 let gifPinLayer = null;
 let gifPinLinksLayer = null;
+let showGifPins = true;
 
 let currentLayer = null;
 let troncalLayer = null;
@@ -577,6 +579,10 @@ function renderGifPinsAndLinks() {
   gifPinLayer.clearLayers();
   gifPinLinksLayer.clearLayers();
 
+  if (!showGifPins) {
+    return;
+  }
+
   for (const pin of gifPins) {
     const marker = L.marker([pin.lat, pin.lng], {
       pane: "poiPane",
@@ -584,8 +590,8 @@ function renderGifPinsAndLinks() {
       icon: L.divIcon({
         className: "gif-pin-wrap",
         html: '<div class="gif-pin-icon">GIF</div>',
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
       }),
       title: pin.title || "Pin GIF",
     });
@@ -622,7 +628,7 @@ function renderGifPinsAndLinks() {
     const tooltipText = pinSelectionMode
       ? (pin.title || "Pin GIF") + " · Clic: ver GIF · Clic derecho: borrar"
       : (pin.title || "Pin GIF") + " · Clic: ver GIF";
-    marker.bindTooltip(tooltipText, { direction: "top", offset: [0, -16] });
+    marker.bindTooltip(tooltipText, { direction: "top", offset: [0, -12] });
     marker.addTo(gifPinLayer);
 
     for (const afectKey of pin.afectKeys || []) {
@@ -781,6 +787,8 @@ function setupPinEditorEvents() {
       if (feedback) feedback.remove();
       flashEditorFeedback("Modo edición desactivado.", "warn");
     }
+
+    renderGifPinsAndLinks();
   });
 
   if (!pinSelectionMode) {
@@ -806,7 +814,7 @@ function setupPinEditorEvents() {
       const afectKeys = Array.from(selectedAfectacionesForPin);
 
       if (!gifUrl) {
-        showEditorFeedback("Captura una URL GIF antes de colocar el pin.", "warn");
+        showEditorFeedback("Selecciona un GIF en la galería o sube uno nuevo antes de colocar el pin.", "warn");
         return;
       }
 
@@ -836,6 +844,14 @@ function setupPinEditorEvents() {
     btnClearPinSelection.addEventListener("click", () => {
       clearPinSelection();
       showEditorFeedback("Selección limpiada.", "ok");
+    });
+  }
+
+  if (toggleGifPinsInput) {
+    toggleGifPinsInput.addEventListener("change", () => {
+      showGifPins = Boolean(toggleGifPinsInput.checked);
+      renderGifPinsAndLinks();
+      setStatus(showGifPins ? "Pines GIF visibles." : "Pines GIF ocultos.");
     });
   }
 

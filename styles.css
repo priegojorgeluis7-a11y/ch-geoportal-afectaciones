@@ -481,18 +481,33 @@ button:disabled {
   background: #0a4a5a;
 }
 
+.gif-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.2rem 0 0.6rem;
+  color: #0b3842;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.gif-filter-toggle input {
+  accent-color: #0c5f73;
+}
+
 .gif-pin-icon {
-  width: 34px;
-  height: 34px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   background: linear-gradient(145deg, #0b6b51, #1f9b79);
-  border: 2px solid #e8fff7;
+  border: 1px solid rgba(232, 255, 247, 0.78);
   color: #ffffff;
   font-weight: 700;
-  font-size: 0.7rem;
-  box-shadow: 0 8px 16px rgba(11, 107, 81, 0.28);
+  font-size: 0.56rem;
+  opacity: 0.74;
+  box-shadow: 0 4px 10px rgba(11, 107, 81, 0.2);
 }
 
 .map-point {
