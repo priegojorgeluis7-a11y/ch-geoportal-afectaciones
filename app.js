@@ -1,3 +1,12 @@
+// --- Firebase Firestore (pines colaborativos) ---
+import {
+  loadPinsFromFirestore,
+  savePinToFirestore,
+  updatePinInFirestore,
+  deletePinFromFirestore,
+  subscribeToPins,
+} from "./firebase.js";
+
 // --- Galería de GIFs locales ---
 const LOCAL_GIFS = [
   "gifs/G_2_3_4.gif",
@@ -444,21 +453,22 @@ function showEditorFeedback(message, tone = "ok") {
   }
 }
 
-function loadGifPinsFromStorage() {
+async function loadGifPinsFromFirebase() {
   try {
-    const raw = localStorage.getItem(GIF_PINS_STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      gifPins = parsed;
-    }
+    const pins = await loadPinsFromFirestore();
+    gifPins = pins;
   } catch (_err) {
     gifPins = [];
   }
 }
 
-function persistGifPins() {
-  localStorage.setItem(GIF_PINS_STORAGE_KEY, JSON.stringify(gifPins));
+// Mantener copia local para compatibilidad con funciones que leen gifPins síncronamente
+function loadGifPinsFromStorage() {
+  // No-op: los pines se cargan desde Firestore en la inicialización
+}
+
+async function persistGifPins() {
+  // No-op: cada operación de crear/actualizar/borrar se maneja individualmente
 }
 
 function refreshPinAfectacionesSelect() {
@@ -582,7 +592,9 @@ function renderGifPinsAndLinks() {
         const idx = gifPins.indexOf(pin);
         if (idx !== -1) {
           gifPins.splice(idx, 1);
-          persistGifPins();
+          if (pin._firestoreId) {
+            deletePinFromFirestore(pin._firestoreId);
+          }
           renderGifPinsAndLinks();
           setStatus("Pin GIF borrado.");
           showEditorFeedback("Pin GIF borrado.", "warn");
@@ -594,7 +606,9 @@ function renderGifPinsAndLinks() {
       const next = marker.getLatLng();
       pin.lat = next.lat;
       pin.lng = next.lng;
-      persistGifPins();
+      if (pin._firestoreId) {
+        updatePinInFirestore(pin._firestoreId, pin);
+      }
       renderGifPinsAndLinks();
       setStatus("Pin GIF movido y guardado.");
       showEditorFeedback("Pin GIF movido correctamente.", "ok");
@@ -672,7 +686,7 @@ function openPopupForLayer(layer, props) {
   layer.openPopup();
 }
 
-function placePendingPinAtLatLng(latlng) {
+async function placePendingPinAtLatLng(latlng) {
   if (!pendingPinDraft || !latlng) return false;
 
   const pin = {
@@ -685,18 +699,24 @@ function placePendingPinAtLatLng(latlng) {
     afectKeys: pendingPinDraft.afectKeys,
   };
 
+  // Guardar en Firestore y obtener el ID asignado
+  showEditorFeedback("Guardando pin en la nube...", "ok");
+  const firestoreId = await savePinToFirestore(pin);
+  if (firestoreId) {
+    pin._firestoreId = firestoreId;
+  }
+
   gifPins.push(pin);
-  persistGifPins();
   renderGifPinsAndLinks();
 
   pendingPinDraft = null;
-  clearPinSelection(); // Limpiar la selección actual para el próximo pin
+  clearPinSelection();
   showEditorFeedback("Pin GIF guardado y vinculado correctamente.", "ok");
   setStatus("Pin GIF creado y vinculado.");
   return true;
 }
 
-function handleAfectacionLayerClick(layer, props, event) {
+async function handleAfectacionLayerClick(layer, props, event) {
   const afectKey = buildAfectacionKey(props);
 
   if (pendingPinDraft) {
@@ -705,7 +725,7 @@ function handleAfectacionLayerClick(layer, props, event) {
         ? event.latlng
         : (typeof layer.getLatLng === "function" ? layer.getLatLng() : null);
 
-    if (placePendingPinAtLatLng(latlng)) return;
+    if (await placePendingPinAtLatLng(latlng)) return;
   }
 
   if (pinSelectionMode) {
@@ -805,11 +825,13 @@ function setupPinEditorEvents() {
 
   if (btnClearAllPins) {
     btnClearAllPins.addEventListener("click", () => {
+      const toDelete = gifPins.filter((p) => p._firestoreId);
       gifPins = [];
-      persistGifPins();
       renderGifPinsAndLinks();
       showEditorFeedback("Se borraron todos los pines GIF.", "warn");
       setStatus("Se borraron todos los pines GIF.");
+      // Borrar de Firestore en background
+      toDelete.forEach((p) => deletePinFromFirestore(p._firestoreId));
     });
   }
   
@@ -820,10 +842,10 @@ function setupPinEditorEvents() {
     });
   }
 
-  map.on("click", (event) => {
+  map.on("click", async (event) => {
     if (!pinSelectionMode) return;
     if (pendingPinDraft) {
-      placePendingPinAtLatLng(event.latlng);
+      await placePendingPinAtLatLng(event.latlng);
     }
   });
 }
@@ -1466,3 +1488,13 @@ addViaductoMarker();
 loadMunicipioBoundariesDataset();
 loadTroncalLayer();
 loadKmzLayer();
+
+// Cargar pines desde Firestore y suscribirse a cambios en tiempo real
+loadGifPinsFromFirebase().then(() => {
+  renderGifPinsAndLinks();
+});
+
+subscribeToPins((pins) => {
+  gifPins = pins;
+  renderGifPinsAndLinks();
+});
