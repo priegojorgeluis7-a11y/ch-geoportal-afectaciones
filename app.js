@@ -626,18 +626,22 @@ function renderGifPinsAndLinks() {
       const center = getFeatureCenter(feature);
       if (!center) continue;
 
-      L.polyline(
+      const isSatellite = map.hasLayer(baseImagery);
+      const linkColor = isSatellite ? "#ffffff" : "#0c5f73";
+      const linkOpacity = isSatellite ? 0.85 : 0.75;
+      const polyline = L.polyline(
         [
           [pin.lat, pin.lng],
           [center.lat, center.lng],
         ],
         {
           pane: "boundaryPane",
-          color: "#0c5f73",
-          weight: 2,
-          opacity: 0.55,
-          dashArray: "6 4",
+          color: linkColor,
+          weight: 4,
+          opacity: linkOpacity,
+          dashArray: "10 6",
           interactive: false,
+          className: "gif-link-animated",
         }
       ).addTo(gifPinLinksLayer);
     }
@@ -1453,6 +1457,11 @@ async function loadTroncalLayer() {
     console.error("No se pudo cargar TRONCAL.kmz", err);
   }
 }
+
+// Actualizar color de líneas de vinculación al cambiar capa base
+map.on("baselayerchange", () => {
+  renderGifPinsAndLinks();
+});
 
 // Listeners de los botones principales
 if (btnReload) btnReload.addEventListener("click", loadKmzLayer);

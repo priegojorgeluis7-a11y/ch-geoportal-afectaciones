@@ -544,12 +544,12 @@ button:disabled {
 }
 
 .gif-link-animated {
-  animation: gifLinkFlow 1.3s linear infinite;
+  animation: gifLinkFlow 0.9s linear infinite;
 }
 
 @keyframes gifLinkFlow {
   from {
-    stroke-dashoffset: 12;
+    stroke-dashoffset: 16;
   }
   to {
     stroke-dashoffset: 0;
