@@ -82,10 +82,10 @@
         <p id="pin-selected-count" class="hint">Afectaciones seleccionadas para pin: 0</p>
         <input id="pin-title" class="text-filter" type="text" placeholder="Titulo del pin (opcional)" />
         <textarea id="pin-description" class="text-filter text-area" placeholder="Descripcion del pin (se mostrara en las fichas vinculadas)..."></textarea>
-        <input id="gif-url" class="text-filter" type="text" placeholder="URL del GIF (https://...gif) o selecciona uno local abajo" />
         <div style="margin:0.4rem 0 0.2rem;">
           <label for="gif-upload" class="btn-upload-gif" title="Subir nuevo GIF desde tu dispositivo">+ Subir GIF</label>
           <input id="gif-upload" type="file" accept=".gif,image/gif" style="display:none;" />
+          <input id="gif-url" type="hidden" />
         </div>
         <div id="local-gif-gallery" style="margin:0.5rem 0 0.7rem; display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
         <p id="editor-feedback" class="editor-feedback" aria-live="polite"></p>
@@ -139,6 +139,6 @@
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
-  <script src="app.js?v=20260430gif5"></script>
+  <script src="app.js?v=20260430gif6"></script>
 </body>
 </html>
