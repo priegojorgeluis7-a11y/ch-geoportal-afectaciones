@@ -65,35 +65,110 @@ const LOCAL_GIFS = [
   "gifs/G67.gif",
 ];
 
+const UPLOADED_GIFS_KEY = "uploaded-gifs-v1";
+
+function loadUploadedGifs() {
+  try {
+    const raw = localStorage.getItem(UPLOADED_GIFS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function saveUploadedGifs(list) {
+  localStorage.setItem(UPLOADED_GIFS_KEY, JSON.stringify(list));
+}
+
+function addGifThumbToGallery(gallery, gifData, isUploaded = false) {
+  const wrap = document.createElement("div");
+  wrap.style.position = "relative";
+  wrap.style.display = "inline-block";
+
+  const img = document.createElement("img");
+  img.src = gifData.url;
+  img.alt = gifData.name;
+  img.title = gifData.name;
+  img.style.width = "64px";
+  img.style.height = "64px";
+  img.style.objectFit = "cover";
+  img.style.cursor = "pointer";
+  img.style.border = "2px solid #e0e0e0";
+  img.style.borderRadius = "8px";
+  img.style.display = "block";
+  img.addEventListener("click", () => {
+    if (gifUrlInput) gifUrlInput.value = gifData.url;
+    Array.from(gallery.querySelectorAll("img")).forEach((el) => {
+      el.style.border = "2px solid #e0e0e0";
+    });
+    img.style.border = "2px solid #0c5f73";
+  });
+
+  wrap.appendChild(img);
+
+  if (isUploaded) {
+    const del = document.createElement("button");
+    del.type = "button";
+    del.textContent = "✕";
+    del.title = "Eliminar GIF";
+    del.style.cssText = "position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#c0392b;color:#fff;border:none;cursor:pointer;font-size:10px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;";
+    del.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const list = loadUploadedGifs().filter((g) => g.name !== gifData.name);
+      saveUploadedGifs(list);
+      wrap.remove();
+    });
+    wrap.appendChild(del);
+  }
+
+  gallery.appendChild(wrap);
+}
+
 function renderLocalGifGallery() {
   const gallery = document.getElementById("local-gif-gallery");
   if (!gallery) return;
   gallery.innerHTML = "";
   LOCAL_GIFS.forEach((gifPath) => {
-    const img = document.createElement("img");
-    img.src = gifPath;
-    img.alt = gifPath.split("/").pop();
-    img.title = gifPath.split("/").pop();
-    img.style.width = "64px";
-    img.style.height = "64px";
-    img.style.objectFit = "cover";
-    img.style.cursor = "pointer";
-    img.style.border = "2px solid #e0e0e0";
-    img.style.borderRadius = "8px";
-    img.addEventListener("click", () => {
-      if (gifUrlInput) gifUrlInput.value = gifPath;
-      img.style.border = "2px solid #0c5f73";
-      // Quitar selección de otros
-      Array.from(gallery.children).forEach((el) => {
-        if (el !== img) el.style.border = "2px solid #e0e0e0";
-      });
-    });
-    gallery.appendChild(img);
+    addGifThumbToGallery(gallery, { url: gifPath, name: gifPath.split("/").pop() }, false);
+  });
+  loadUploadedGifs().forEach((gifData) => {
+    addGifThumbToGallery(gallery, gifData, true);
+  });
+}
+
+function initGifUpload() {
+  const input = document.getElementById("gif-upload");
+  if (!input) return;
+  input.addEventListener("change", () => {
+    const file = input.files[0];
+    if (!file) return;
+    if (!file.type.includes("gif")) {
+      alert("Solo se permiten archivos .gif");
+      input.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const gifData = { name: file.name, url: dataUrl };
+      const list = loadUploadedGifs();
+      // Evitar duplicados por nombre
+      if (!list.find((g) => g.name === file.name)) {
+        list.push(gifData);
+        saveUploadedGifs(list);
+      }
+      const gallery = document.getElementById("local-gif-gallery");
+      if (gallery) addGifThumbToGallery(gallery, gifData, true);
+      if (gifUrlInput) gifUrlInput.value = dataUrl;
+      input.value = "";
+    };
+    reader.readAsDataURL(file);
   });
 }
 
 // El script está al final del body, el DOM ya está disponible
 renderLocalGifGallery();
+initGifUpload();
 
 const KMZ_PATH = "data/afectaciones_ba_170426.kmz";
 const TRONCAL_KMZ_PATH = "data/TRONCAL.kmz?v=20260429d";
