@@ -37,7 +37,7 @@ const LOCAL_GIFS = [
   "gifs/G40.gif",
   "gifs/G41.gif",
   "gifs/G42.gif",
-  "gifs/G43.gif", 
+  "gifs/G43.gif",
   "gifs/G44.gif",
   "gifs/G45.gif",
   "gifs/G46.gif",
@@ -82,7 +82,6 @@ function saveUploadedGifs(list) {
 
 function addGifThumbToGallery(gallery, gifData, isUploaded = false) {
   const wrap = document.createElement("div");
-  wrap.className = "gif-thumb-wrap";
   wrap.style.position = "relative";
   wrap.style.display = "inline-block";
 
@@ -106,11 +105,6 @@ function addGifThumbToGallery(gallery, gifData, isUploaded = false) {
   });
 
   wrap.appendChild(img);
-
-  const nameTag = document.createElement("span");
-  nameTag.className = "gif-thumb-label";
-  nameTag.textContent = gifData.name;
-  wrap.appendChild(nameTag);
 
   if (isUploaded) {
     const del = document.createElement("button");
@@ -153,38 +147,19 @@ function initGifUpload() {
       input.value = "";
       return;
     }
-    // Advertir si el archivo es muy grande para localStorage (>4MB)
-    if (file.size > 4 * 1024 * 1024) {
-      const ok = confirm(
-        `El archivo "${file.name}" pesa ${(file.size / 1024 / 1024).toFixed(1)} MB.\n` +
-        `Archivos grandes pueden no guardarse entre sesiones.\n` +
-        `¿Continuar de todas formas?`
-      );
-      if (!ok) { input.value = ""; return; }
-    }
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target.result;
       const gifData = { name: file.name, url: dataUrl };
-      // Intentar guardar en localStorage (puede fallar si el archivo es muy grande)
-      try {
-        const list = loadUploadedGifs();
-        if (!list.find((g) => g.name === file.name)) {
-          list.push(gifData);
-          saveUploadedGifs(list);
-        }
-      } catch (err) {
-        console.warn("No se pudo guardar el GIF en localStorage (archivo muy grande):", err);
+      const list = loadUploadedGifs();
+      // Evitar duplicados por nombre
+      if (!list.find((g) => g.name === file.name)) {
+        list.push(gifData);
+        saveUploadedGifs(list);
       }
-      // Agregar a la galería y seleccionar aunque no se haya podido guardar
       const gallery = document.getElementById("local-gif-gallery");
       if (gallery) addGifThumbToGallery(gallery, gifData, true);
       if (gifUrlInput) gifUrlInput.value = dataUrl;
-      input.value = "";
-      showEditorFeedback(`GIF "${file.name}" cargado. Selecciónalo en la galería.`, "ok");
-    };
-    reader.onerror = () => {
-      alert("Error al leer el archivo. Intenta de nuevo.");
       input.value = "";
     };
     reader.readAsDataURL(file);
@@ -226,7 +201,6 @@ const gifUrlInput = document.getElementById("gif-url");
 const btnPlaceGifPin = document.getElementById("btn-place-gif-pin");
 const btnClearPinSelection = document.getElementById("btn-clear-pin-selection");
 const btnClearAllPins = document.getElementById("btn-clear-all-pins");
-const toggleGifPinsInput = document.getElementById("toggle-gif-pins");
 const editorFeedback = document.getElementById("editor-feedback");
 const gifEditorCard = document.querySelector(".editor-gif-card");
 const editModeSwitch = document.getElementById("edit-mode-switch");
@@ -261,7 +235,6 @@ let gifPins = [];
 let pendingPinDraft = null;
 let gifPinLayer = null;
 let gifPinLinksLayer = null;
-let showGifPins = true;
 
 let currentLayer = null;
 let troncalLayer = null;
@@ -287,10 +260,8 @@ map.createPane("afectacionesPane");
 map.getPane("afectacionesPane").style.zIndex = 420;
 map.createPane("boundaryPane");
 map.getPane("boundaryPane").style.zIndex = 430;
-map.createPane("gifLinksPane");
-map.getPane("gifLinksPane").style.zIndex = 395;
 map.createPane("poiPane");
-map.getPane("poiPane").style.zIndex = 405;
+map.getPane("poiPane").style.zIndex = 500;
 
 const svgRenderer = L.svg({ padding: 0.5 });
 
@@ -587,32 +558,15 @@ function renderGifPinsAndLinks() {
   gifPinLayer.clearLayers();
   gifPinLinksLayer.clearLayers();
 
-  if (!showGifPins) {
-    return;
-  }
-
-  const zoom = map.getZoom();
-  const zoomFactor = Math.max(0, Math.min(1, (zoom - 8) / 7));
-  const isSatelliteView = map.hasLayer(baseImagery);
-  const pinSize = Math.round(22 + zoomFactor * 18);
-  const pinFont = (0.5 + zoomFactor * 0.28).toFixed(2);
-  const pinAlpha = (0.6 + zoomFactor * 0.32).toFixed(2);
-  const pinBorderAlpha = (0.52 + zoomFactor * 0.3).toFixed(2);
-  const pinTextAlpha = (0.78 + zoomFactor * 0.2).toFixed(2);
-  const pinShadowAlpha = (0.14 + zoomFactor * 0.18).toFixed(2);
-  const linkColor = isSatelliteView ? "#ffffff" : "#0c5f73";
-  const linkWeight = isSatelliteView ? 3 : 2;
-  const linkOpacity = isSatelliteView ? 0.88 : 0.55;
-
   for (const pin of gifPins) {
     const marker = L.marker([pin.lat, pin.lng], {
       pane: "poiPane",
       draggable: pinSelectionMode,
       icon: L.divIcon({
         className: "gif-pin-wrap",
-        html: `<div class="gif-pin-icon" style="--gif-pin-size:${pinSize}px;--gif-pin-font:${pinFont}rem;--gif-pin-alpha:${pinAlpha};--gif-pin-border-alpha:${pinBorderAlpha};--gif-pin-text-alpha:${pinTextAlpha};--gif-pin-shadow-alpha:${pinShadowAlpha};">GIF</div>`,
-        iconSize: [pinSize, pinSize],
-        iconAnchor: [pinSize / 2, pinSize / 2],
+        html: '<div class="gif-pin-icon">GIF</div>',
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
       }),
       title: pin.title || "Pin GIF",
     });
@@ -649,7 +603,7 @@ function renderGifPinsAndLinks() {
     const tooltipText = pinSelectionMode
       ? (pin.title || "Pin GIF") + " · Clic: ver GIF · Clic derecho: borrar"
       : (pin.title || "Pin GIF") + " · Clic: ver GIF";
-    marker.bindTooltip(tooltipText, { direction: "top", offset: [0, -12] });
+    marker.bindTooltip(tooltipText, { direction: "top", offset: [0, -16] });
     marker.addTo(gifPinLayer);
 
     for (const afectKey of pin.afectKeys || []) {
@@ -664,11 +618,10 @@ function renderGifPinsAndLinks() {
           [center.lat, center.lng],
         ],
         {
-          pane: "gifLinksPane",
-          className: "gif-link-animated",
-          color: linkColor,
-          weight: linkWeight,
-          opacity: linkOpacity,
+          pane: "boundaryPane",
+          color: "#0c5f73",
+          weight: 2,
+          opacity: 0.55,
           dashArray: "6 4",
           interactive: false,
         }
@@ -809,8 +762,6 @@ function setupPinEditorEvents() {
       if (feedback) feedback.remove();
       flashEditorFeedback("Modo edición desactivado.", "warn");
     }
-
-    renderGifPinsAndLinks();
   });
 
   if (!pinSelectionMode) {
@@ -836,7 +787,7 @@ function setupPinEditorEvents() {
       const afectKeys = Array.from(selectedAfectacionesForPin);
 
       if (!gifUrl) {
-        showEditorFeedback("Selecciona un GIF en la galería o sube uno nuevo antes de colocar el pin.", "warn");
+        showEditorFeedback("Captura una URL GIF antes de colocar el pin.", "warn");
         return;
       }
 
@@ -869,30 +820,10 @@ function setupPinEditorEvents() {
     });
   }
 
-  if (toggleGifPinsInput) {
-    toggleGifPinsInput.addEventListener("change", () => {
-      showGifPins = Boolean(toggleGifPinsInput.checked);
-      renderGifPinsAndLinks();
-      setStatus(showGifPins ? "Pines GIF visibles." : "Pines GIF ocultos.");
-    });
-  }
-
   map.on("click", (event) => {
     if (!pinSelectionMode) return;
     if (pendingPinDraft) {
       placePendingPinAtLatLng(event.latlng);
-    }
-  });
-
-  map.on("zoomend", () => {
-    if (showGifPins && gifPins.length) {
-      renderGifPinsAndLinks();
-    }
-  });
-
-  map.on("baselayerchange", () => {
-    if (showGifPins && gifPins.length) {
-      renderGifPinsAndLinks();
     }
   });
 }
