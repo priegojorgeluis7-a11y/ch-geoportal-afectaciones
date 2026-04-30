@@ -147,19 +147,38 @@ function initGifUpload() {
       input.value = "";
       return;
     }
+    // Advertir si el archivo es muy grande para localStorage (>4MB)
+    if (file.size > 4 * 1024 * 1024) {
+      const ok = confirm(
+        `El archivo "${file.name}" pesa ${(file.size / 1024 / 1024).toFixed(1)} MB.\n` +
+        `Archivos grandes pueden no guardarse entre sesiones.\n` +
+        `¿Continuar de todas formas?`
+      );
+      if (!ok) { input.value = ""; return; }
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target.result;
       const gifData = { name: file.name, url: dataUrl };
-      const list = loadUploadedGifs();
-      // Evitar duplicados por nombre
-      if (!list.find((g) => g.name === file.name)) {
-        list.push(gifData);
-        saveUploadedGifs(list);
+      // Intentar guardar en localStorage (puede fallar si el archivo es muy grande)
+      try {
+        const list = loadUploadedGifs();
+        if (!list.find((g) => g.name === file.name)) {
+          list.push(gifData);
+          saveUploadedGifs(list);
+        }
+      } catch (err) {
+        console.warn("No se pudo guardar el GIF en localStorage (archivo muy grande):", err);
       }
+      // Agregar a la galería y seleccionar aunque no se haya podido guardar
       const gallery = document.getElementById("local-gif-gallery");
       if (gallery) addGifThumbToGallery(gallery, gifData, true);
       if (gifUrlInput) gifUrlInput.value = dataUrl;
+      input.value = "";
+      showEditorFeedback(`GIF "${file.name}" cargado. Selecciónalo en la galería.`, "ok");
+    };
+    reader.onerror = () => {
+      alert("Error al leer el archivo. Intenta de nuevo.");
       input.value = "";
     };
     reader.readAsDataURL(file);
