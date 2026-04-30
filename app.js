@@ -82,6 +82,7 @@ function saveUploadedGifs(list) {
 
 function addGifThumbToGallery(gallery, gifData, isUploaded = false) {
   const wrap = document.createElement("div");
+  wrap.className = "gif-thumb-wrap";
   wrap.style.position = "relative";
   wrap.style.display = "inline-block";
 
@@ -105,6 +106,11 @@ function addGifThumbToGallery(gallery, gifData, isUploaded = false) {
   });
 
   wrap.appendChild(img);
+
+  const nameTag = document.createElement("span");
+  nameTag.className = "gif-thumb-label";
+  nameTag.textContent = gifData.name;
+  wrap.appendChild(nameTag);
 
   if (isUploaded) {
     const del = document.createElement("button");
