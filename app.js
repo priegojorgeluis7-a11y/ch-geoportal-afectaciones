@@ -486,7 +486,7 @@ function renderGifPinsAndLinks() {
   for (const pin of gifPins) {
     const marker = L.marker([pin.lat, pin.lng], {
       pane: "poiPane",
-      draggable: true,
+      draggable: pinSelectionMode,
       icon: L.divIcon({
         className: "gif-pin-wrap",
         html: '<div class="gif-pin-icon">GIF</div>',
@@ -501,6 +501,7 @@ function renderGifPinsAndLinks() {
     });
 
     marker.on("contextmenu", () => {
+      if (!pinSelectionMode) return;
       const label = pin.title ? `"${pin.title}"` : "este pin GIF";
       if (confirm(`¿Borrar ${label}?`)) {
         const idx = gifPins.indexOf(pin);
@@ -524,7 +525,10 @@ function renderGifPinsAndLinks() {
       showEditorFeedback("Pin GIF movido correctamente.", "ok");
     });
 
-    marker.bindTooltip((pin.title || "Pin GIF") + " · Clic: ver GIF · Clic derecho: borrar", { direction: "top", offset: [0, -16] });
+    const tooltipText = pinSelectionMode
+      ? (pin.title || "Pin GIF") + " · Clic: ver GIF · Clic derecho: borrar"
+      : (pin.title || "Pin GIF") + " · Clic: ver GIF";
+    marker.bindTooltip(tooltipText, { direction: "top", offset: [0, -16] });
     marker.addTo(gifPinLayer);
 
     for (const afectKey of pin.afectKeys || []) {
