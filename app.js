@@ -92,8 +92,9 @@ function renderLocalGifGallery() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", renderLocalGifGallery);
-// Si la interfaz se genera dinámicamente, también puedes llamar a renderLocalGifGallery() después de cargar el DOM.
+// El script está al final del body, el DOM ya está disponible
+renderLocalGifGallery();
+
 const KMZ_PATH = "data/afectaciones_ba_170426.kmz";
 const TRONCAL_KMZ_PATH = "data/TRONCAL.kmz?v=20260429d";
 const MUNICIPIOS_GEOJSON_PATH = "data/municipios_jalisco.geojson";
