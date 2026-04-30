@@ -74,6 +74,10 @@
           <li><span class="legend-line troncal"></span><span>Trazo troncal (KMZ)</span></li>
           <li><span class="legend-line limite"></span><span>Limite municipal</span></li>
         </ul>
+        <label class="gif-filter-toggle" style="margin-top:0.65rem;">
+          <input id="toggle-gif-pins" type="checkbox" checked />
+          Ver pines GIF
+        </label>
       </section>
 
       <section class="card editor-card editor-gif-card">
@@ -88,10 +92,6 @@
           <input id="gif-url" type="hidden" />
         </div>
         <div id="local-gif-gallery" style="margin:0.5rem 0 0.7rem; display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
-        <label class="gif-filter-toggle">
-          <input id="toggle-gif-pins" type="checkbox" checked />
-          Ver pines GIF
-        </label>
         <p id="editor-feedback" class="editor-feedback" aria-live="polite"></p>
         <div class="editor-actions">
           <button id="btn-clear-pin-selection" type="button" class="btn-clear-all">Limpiar seleccion</button>
@@ -143,6 +143,6 @@
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
-  <script src="app.js?v=20260430gif8"></script>
+  <script src="app.js?v=20260430gif9"></script>
 </body>
 </html>
