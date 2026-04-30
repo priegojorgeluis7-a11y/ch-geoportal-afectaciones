@@ -287,6 +287,8 @@ map.createPane("afectacionesPane");
 map.getPane("afectacionesPane").style.zIndex = 420;
 map.createPane("boundaryPane");
 map.getPane("boundaryPane").style.zIndex = 430;
+map.createPane("gifLinksPane");
+map.getPane("gifLinksPane").style.zIndex = 395;
 map.createPane("poiPane");
 map.getPane("poiPane").style.zIndex = 405;
 
@@ -591,6 +593,8 @@ function renderGifPinsAndLinks() {
 
   const zoom = map.getZoom();
   const zoomFactor = Math.max(0, Math.min(1, (zoom - 8) / 7));
+  const pinSize = Math.round(22 + zoomFactor * 18);
+  const pinFont = (0.5 + zoomFactor * 0.28).toFixed(2);
   const pinAlpha = (0.6 + zoomFactor * 0.32).toFixed(2);
   const pinBorderAlpha = (0.52 + zoomFactor * 0.3).toFixed(2);
   const pinTextAlpha = (0.78 + zoomFactor * 0.2).toFixed(2);
@@ -602,9 +606,9 @@ function renderGifPinsAndLinks() {
       draggable: pinSelectionMode,
       icon: L.divIcon({
         className: "gif-pin-wrap",
-        html: `<div class="gif-pin-icon" style="--gif-pin-alpha:${pinAlpha};--gif-pin-border-alpha:${pinBorderAlpha};--gif-pin-text-alpha:${pinTextAlpha};--gif-pin-shadow-alpha:${pinShadowAlpha};">GIF</div>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
+        html: `<div class="gif-pin-icon" style="--gif-pin-size:${pinSize}px;--gif-pin-font:${pinFont}rem;--gif-pin-alpha:${pinAlpha};--gif-pin-border-alpha:${pinBorderAlpha};--gif-pin-text-alpha:${pinTextAlpha};--gif-pin-shadow-alpha:${pinShadowAlpha};">GIF</div>`,
+        iconSize: [pinSize, pinSize],
+        iconAnchor: [pinSize / 2, pinSize / 2],
       }),
       title: pin.title || "Pin GIF",
     });
@@ -656,7 +660,8 @@ function renderGifPinsAndLinks() {
           [center.lat, center.lng],
         ],
         {
-          pane: "boundaryPane",
+          pane: "gifLinksPane",
+          className: "gif-link-animated",
           color: "#0c5f73",
           weight: 2,
           opacity: 0.55,
