@@ -17,7 +17,7 @@ const btnPanelToggle = document.getElementById("btn-panel-toggle");
 const filterPanel = document.getElementById("filter-panel");
 const afectacionSelect = document.getElementById("afectacion-select");
 const afectacionSelectedLabel = document.getElementById("afectacion-selected-label");
-const afectacionNumeroInput = document.getElementById("afectacion-numero");
+// Eliminado input de número de afectación
 const afectacionDescripcionInput = document.getElementById("afectacion-descripcion");
 const btnSaveAfectacion = document.getElementById("btn-save-afectacion");
 const btnClearAfectacion = document.getElementById("btn-clear-afectacion");
@@ -215,7 +215,6 @@ function getAfectacionMeta(key) {
   const entry = afectacionMeta[key];
   if (!entry || typeof entry !== "object") return null;
   return {
-    numero: String(entry.numero || "").trim(),
     descripcion: String(entry.descripcion || "").trim(),
   };
 }
@@ -224,9 +223,7 @@ function buildAfectacionLabel(props) {
   const municipio = String(props.nom_mun || "Sin municipio").trim();
   const clasifica = String(props.Clasifica || "Sin clasificar").trim();
   const cveGeo = String(props.cve_geo || "s/cve").trim();
-  const meta = getAfectacionMeta(buildAfectacionKey(props));
-  const numero = meta && meta.numero ? `#${meta.numero} ` : "";
-  return `${numero}${municipio} | ${clasifica} | ${cveGeo}`;
+  return `${municipio} | ${clasifica} | ${cveGeo}`;
 }
 
 function loadAfectacionMetaFromStorage() {
@@ -500,9 +497,6 @@ function fillAfectacionEditorForm(afectKey) {
   }
 
   const meta = getAfectacionMeta(selectedAfectacionKey);
-  if (afectacionNumeroInput) {
-    afectacionNumeroInput.value = meta ? meta.numero : "";
-  }
   if (afectacionDescripcionInput) {
     afectacionDescripcionInput.value = meta ? meta.descripcion : "";
   }
@@ -579,18 +573,17 @@ function attachAfectacionLayerEvents(layer, props) {
 }
 
 function setupAfectacionEditorEvents() {
-  if (!afectacionNumeroInput || !afectacionDescripcionInput || !btnSaveAfectacion) {
+  if (!afectacionDescripcionInput || !btnSaveAfectacion) {
     return;
   }
 
   btnSaveAfectacion.addEventListener("click", () => {
     if (!selectedAfectacionKey) {
-      showAfectFeedback("Selecciona una afectacion para guardar su ficha.", "warn");
+      showAfectFeedback("Selecciona una afectación para guardar su descripción.", "warn");
       return;
     }
 
     afectacionMeta[selectedAfectacionKey] = {
-      numero: String(afectacionNumeroInput.value || "").trim(),
       descripcion: String(afectacionDescripcionInput.value || "").trim(),
     };
 
@@ -603,8 +596,8 @@ function setupAfectacionEditorEvents() {
       refreshPinAfectacionesSelect();
     }
 
-    showAfectFeedback("Ficha de afectacion guardada correctamente.", "ok");
-    setStatus("Ficha de afectacion actualizada.");
+    showAfectFeedback("Descripción guardada correctamente.", "ok");
+    setStatus("Descripción de afectación actualizada.");
   });
 
   if (btnClearAfectacion) {
